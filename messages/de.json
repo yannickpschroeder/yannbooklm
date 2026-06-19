@@ -10,6 +10,25 @@
   "navigation": {
     "switchLanguage": "English"
   },
+  "notebooks": {
+    "title": "Meine Notizbücher",
+    "empty": "Noch keine Notizbücher",
+    "emptyDescription": "Erstelle dein erstes Notizbuch um loszulegen.",
+    "create": "Neues Notizbuch",
+    "createTitle": "Notizbuch erstellen",
+    "createDescription": "Gib deinem Notizbuch einen Namen.",
+    "namePlaceholder": "Name des Notizbuchs",
+    "rename": "Umbenennen",
+    "renameTitle": "Notizbuch umbenennen",
+    "delete": "Löschen",
+    "deleteTitle": "Notizbuch löschen",
+    "deleteDescription": "Diese Aktion kann nicht rückgängig gemacht werden. Alle Quellen, Nachrichten und Notizen werden unwiderruflich gelöscht.",
+    "deleteConfirm": "Ja, löschen",
+    "createSuccess": "Notizbuch erstellt",
+    "renameSuccess": "Notizbuch umbenannt",
+    "deleteSuccess": "Notizbuch gelöscht",
+    "openNotebook": "Notizbuch öffnen"
+  },
   "common": {
     "loading": "Lädt...",
     "error": "Ein Fehler ist aufgetreten",

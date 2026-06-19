@@ -10,6 +10,25 @@
   "navigation": {
     "switchLanguage": "Deutsch"
   },
+  "notebooks": {
+    "title": "My Notebooks",
+    "empty": "No notebooks yet",
+    "emptyDescription": "Create your first notebook to get started.",
+    "create": "New Notebook",
+    "createTitle": "Create notebook",
+    "createDescription": "Give your notebook a name.",
+    "namePlaceholder": "Notebook name",
+    "rename": "Rename",
+    "renameTitle": "Rename notebook",
+    "delete": "Delete",
+    "deleteTitle": "Delete notebook",
+    "deleteDescription": "This action cannot be undone. All sources, messages and notes will be permanently deleted.",
+    "deleteConfirm": "Yes, delete",
+    "createSuccess": "Notebook created",
+    "renameSuccess": "Notebook renamed",
+    "deleteSuccess": "Notebook deleted",
+    "openNotebook": "Open notebook"
+  },
   "common": {
     "loading": "Loading...",
     "error": "An error occurred",
