@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """
-Exports the current Claude Code session as readable Markdown.
-Usage: python3 scripts/export-chat.py [--label "Issue #2"]
+Incrementally exports new Claude Code messages since the last export.
+Usage:  python3 scripts/export-chat.py --label "Issue #2"
 Output: docs/chat-history/YYYY-MM-DD_HH-MM_<label>.md
+
+State is persisted in docs/chat-history/.export-state.json so each run
+only includes messages that arrived after the previous export.
 """
 
 import json
@@ -11,24 +14,39 @@ import os
 import glob
 from datetime import datetime, timezone
 
-# ─── Find the session file ────────────────────────────────────────────────────
+# ─── Config ───────────────────────────────────────────────────────────────────
 
-project_key = "-home-homior-yannickschroeder-yannbooklm-v2"
-session_dir = os.path.expanduser(f"~/.claude/projects/{project_key}")
+PROJECT_KEY = "-home-homior-yannickschroeder-yannbooklm-v2"
+SESSION_DIR = os.path.expanduser(f"~/.claude/projects/{PROJECT_KEY}")
+OUT_DIR = os.path.join(os.path.dirname(__file__), "..", "docs", "chat-history")
+STATE_FILE = os.path.join(OUT_DIR, ".export-state.json")
 
-if not os.path.isdir(session_dir):
-    print(f"Session directory not found: {session_dir}", file=sys.stderr)
+# ─── Find session file ────────────────────────────────────────────────────────
+
+if not os.path.isdir(SESSION_DIR):
+    print(f"Session directory not found: {SESSION_DIR}", file=sys.stderr)
     sys.exit(1)
 
-# Pick the most recently modified JSONL file
-session_files = glob.glob(os.path.join(session_dir, "*.jsonl"))
+session_files = glob.glob(os.path.join(SESSION_DIR, "*.jsonl"))
 if not session_files:
     print("No session files found.", file=sys.stderr)
     sys.exit(1)
 
 session_file = max(session_files, key=os.path.getmtime)
+session_id = os.path.basename(session_file)
 
-# ─── Parse ────────────────────────────────────────────────────────────────────
+# ─── Load state ───────────────────────────────────────────────────────────────
+
+os.makedirs(OUT_DIR, exist_ok=True)
+
+state: dict = {}
+if os.path.exists(STATE_FILE):
+    with open(STATE_FILE, encoding="utf-8") as f:
+        state = json.load(f)
+
+last_uuid: str | None = state.get("last_uuid")
+
+# ─── Parse session ────────────────────────────────────────────────────────────
 
 entries = []
 with open(session_file, encoding="utf-8") as f:
@@ -41,66 +59,84 @@ with open(session_file, encoding="utf-8") as f:
         except json.JSONDecodeError:
             continue
 
-# ─── Extract messages ─────────────────────────────────────────────────────────
+# ─── Extract text ─────────────────────────────────────────────────────────────
 
 def extract_text(content) -> str:
-    """Extract plain text from a message content field."""
     if isinstance(content, str):
         return content
     if isinstance(content, list):
         parts = []
         for block in content:
-            if isinstance(block, dict):
-                if block.get("type") == "text":
-                    parts.append(block.get("text", ""))
-                elif block.get("type") == "tool_use":
-                    name = block.get("name", "tool")
-                    inp = block.get("input", {})
-                    parts.append(f"*[Tool call: `{name}`]*")
-                    # Show key inputs briefly
-                    for k, v in list(inp.items())[:2]:
-                        v_str = str(v)[:120].replace("\n", " ")
-                        parts.append(f"  - `{k}`: {v_str}")
-                elif block.get("type") == "tool_result":
-                    parts.append(f"*[Tool result]*")
+            if not isinstance(block, dict):
+                continue
+            if block.get("type") == "text":
+                parts.append(block.get("text", ""))
+            elif block.get("type") == "tool_use":
+                name = block.get("name", "tool")
+                inp = block.get("input", {})
+                parts.append(f"*[Tool: `{name}`]*")
+                for k, v in list(inp.items())[:2]:
+                    parts.append(f"  - `{k}`: {str(v)[:120].replace(chr(10), ' ')}")
         return "\n".join(p for p in parts if p)
     return str(content)
 
-messages = []
+# ─── Filter to new messages only ──────────────────────────────────────────────
+
+all_messages = []
 for entry in entries:
     t = entry.get("type")
-    if t == "user":
-        msg = entry.get("message", {})
-        text = extract_text(msg.get("content", ""))
-        ts = entry.get("timestamp", "")
-        if text.strip():
-            messages.append(("user", text.strip(), ts))
-    elif t == "assistant":
-        msg = entry.get("message", {})
-        text = extract_text(msg.get("content", ""))
-        ts = entry.get("timestamp", "")
-        if text.strip():
-            messages.append(("assistant", text.strip(), ts))
+    if t not in ("user", "assistant"):
+        continue
+    msg = entry.get("message", {})
+    text = extract_text(msg.get("content", "")).strip()
+    if not text:
+        continue
+    all_messages.append({
+        "role": t,
+        "text": text,
+        "uuid": entry.get("uuid", ""),
+        "timestamp": entry.get("timestamp", ""),
+    })
 
-# ─── Render Markdown ──────────────────────────────────────────────────────────
+# Find slice start: everything after last_uuid
+if last_uuid:
+    start_idx = next(
+        (i + 1 for i, m in enumerate(all_messages) if m["uuid"] == last_uuid),
+        len(all_messages),  # if uuid not found, export nothing
+    )
+else:
+    start_idx = 0  # first export: include everything
+
+new_messages = all_messages[start_idx:]
+
+if not new_messages:
+    print("No new messages since last export. Nothing to write.")
+    sys.exit(0)
+
+# ─── Write Markdown ───────────────────────────────────────────────────────────
 
 label = " ".join(sys.argv[sys.argv.index("--label") + 1:]) if "--label" in sys.argv else "session"
 safe_label = label.replace(" ", "-").replace("#", "").replace("/", "-")
 now = datetime.now(timezone.utc).strftime("%Y-%m-%d_%H-%M")
-out_dir = os.path.join(os.path.dirname(__file__), "..", "docs", "chat-history")
-os.makedirs(out_dir, exist_ok=True)
-out_file = os.path.join(out_dir, f"{now}_{safe_label}.md")
+out_file = os.path.join(OUT_DIR, f"{now}_{safe_label}.md")
 
 with open(out_file, "w", encoding="utf-8") as f:
     f.write(f"# Chat History — {label}\n\n")
     f.write(f"Exported: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}\n")
-    f.write(f"Session: `{os.path.basename(session_file)}`\n\n")
+    f.write(f"Session: `{session_id}` · {len(new_messages)} new messages\n\n")
     f.write("---\n\n")
+    for m in new_messages:
+        icon = "🧑" if m["role"] == "user" else "🤖"
+        role = "User" if m["role"] == "user" else "Assistant"
+        f.write(f"## {icon} {role}\n\n{m['text']}\n\n---\n\n")
 
-    for role, text, ts in messages:
-        if role == "user":
-            f.write(f"## 🧑 User\n\n{text}\n\n---\n\n")
-        else:
-            f.write(f"## 🤖 Assistant\n\n{text}\n\n---\n\n")
+# ─── Persist state ────────────────────────────────────────────────────────────
 
-print(f"✓ Exported {len(messages)} messages → {out_file}")
+state["last_uuid"] = new_messages[-1]["uuid"]
+state["last_export"] = now
+state["session_id"] = session_id
+
+with open(STATE_FILE, "w", encoding="utf-8") as f:
+    json.dump(state, f, indent=2)
+
+print(f"✓ Exported {len(new_messages)} new messages → {out_file}")
