@@ -4,7 +4,7 @@ import { signIn } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { FaGithub, FaGoogle } from "react-icons/fa"
 
-export function SignInWithGoogle() {
+export function SignInWithGoogle({ label }: { label: string }) {
   return (
     <Button
       variant="outline"
@@ -12,12 +12,12 @@ export function SignInWithGoogle() {
       onClick={() => signIn("google", { callbackUrl: "/app" })}
     >
       <FaGoogle className="size-4" />
-      Continue with Google
+      {label}
     </Button>
   )
 }
 
-export function SignInWithGitHub() {
+export function SignInWithGitHub({ label }: { label: string }) {
   return (
     <Button
       variant="outline"
@@ -25,7 +25,7 @@ export function SignInWithGitHub() {
       onClick={() => signIn("github", { callbackUrl: "/app" })}
     >
       <FaGithub className="size-4" />
-      Continue with GitHub
+      {label}
     </Button>
   )
 }

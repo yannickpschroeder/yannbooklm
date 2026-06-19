@@ -1,0 +1,23 @@
+{
+  "auth": {
+    "title": "YannBookLM",
+    "description": "Melde dich an, um auf deine Notizbücher zuzugreifen",
+    "continueWithGoogle": "Mit Google anmelden",
+    "continueWithGitHub": "Mit GitHub anmelden",
+    "or": "oder",
+    "signOut": "Abmelden"
+  },
+  "navigation": {
+    "switchLanguage": "English"
+  },
+  "common": {
+    "loading": "Lädt...",
+    "error": "Ein Fehler ist aufgetreten",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "delete": "Löschen",
+    "edit": "Bearbeiten",
+    "create": "Erstellen",
+    "close": "Schließen"
+  }
+}

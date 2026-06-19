@@ -1,0 +1,23 @@
+{
+  "auth": {
+    "title": "YannBookLM",
+    "description": "Sign in to access your notebooks",
+    "continueWithGoogle": "Continue with Google",
+    "continueWithGitHub": "Continue with GitHub",
+    "or": "or",
+    "signOut": "Sign out"
+  },
+  "navigation": {
+    "switchLanguage": "Deutsch"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "close": "Close"
+  }
+}
