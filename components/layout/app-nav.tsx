@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { LanguageSwitcher } from "@/components/i18n/language-switcher"
+import { ThemeToggle } from "@/components/layout/theme-toggle"
 import { Link } from "@/i18n/navigation"
 
 export function AppNav() {
@@ -36,6 +37,7 @@ export function AppNav() {
 
         <div className="flex items-center gap-2">
           <LanguageSwitcher />
+          <ThemeToggle />
 
           <DropdownMenu>
             <DropdownMenuTrigger className="rounded-full ring-offset-background transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">

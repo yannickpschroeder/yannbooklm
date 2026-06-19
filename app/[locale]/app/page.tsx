@@ -1,3 +1,4 @@
+import { AppNav } from "@/components/layout/app-nav"
 import { auth } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import { db } from "@/db"
@@ -21,7 +22,9 @@ export default async function DashboardPage() {
   const t = await getTranslations("notebooks")
 
   return (
-    <div className="mx-auto max-w-screen-xl px-4 py-8">
+    <div className="flex min-h-screen flex-col">
+      <AppNav />
+    <div className="mx-auto w-full max-w-screen-xl flex-1 px-4 py-8">
       <div className="mb-8 flex items-center justify-between">
         <h1 className="text-2xl font-semibold">{t("title")}</h1>
         <CreateNotebookDialog />
@@ -40,6 +43,7 @@ export default async function DashboardPage() {
           ))}
         </div>
       )}
+    </div>
     </div>
   )
 }
