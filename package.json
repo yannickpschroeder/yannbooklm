@@ -11,7 +11,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "chat:export": "python3 scripts/export-chat.py"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.85",
