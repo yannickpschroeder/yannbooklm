@@ -9,11 +9,18 @@ const handleI18nRouting = createMiddleware(routing)
 
 export default auth((req) => {
   const pathname = req.nextUrl.pathname
-  const isAppRoute = /^\/(de|en)\/app/.test(pathname)
+  const segments = pathname.split("/")
+  const locale = segments[1] === "en" ? "en" : "de"
+  const isLoginPage = /^\/(de|en)\/login|^\/login/.test(pathname)
 
-  if (isAppRoute && !req.auth) {
-    const locale = pathname.startsWith("/en/") ? "en" : "de"
+  const isLocaleRoot = /^\/(de|en)\/?$/.test(pathname)
+
+  if (!req.auth && !isLoginPage) {
     return NextResponse.redirect(new URL(`/${locale}/login`, req.nextUrl))
+  }
+
+  if (req.auth && (isLoginPage || isLocaleRoot)) {
+    return NextResponse.redirect(new URL(`/${locale}/app`, req.nextUrl))
   }
 
   return handleI18nRouting(req)

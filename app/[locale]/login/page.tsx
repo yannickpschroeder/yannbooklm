@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator"
 import { SignInWithGitHub, SignInWithGoogle } from "@/components/auth/sign-in-button"
 import { BookOpen } from "lucide-react"
+import { LanguageSwitcher } from "@/components/i18n/language-switcher"
 
 export default async function LoginPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params
@@ -15,6 +16,9 @@ export default async function LoginPage({ params }: { params: Promise<{ locale: 
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-background p-4">
+      <div className="absolute right-4 top-4">
+        <LanguageSwitcher />
+      </div>
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           <div className="mx-auto mb-2 flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
