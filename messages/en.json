@@ -10,6 +10,24 @@
   "navigation": {
     "switchLanguage": "Deutsch"
   },
+  "sources": {
+    "title": "Sources",
+    "addSource": "Add source",
+    "addPdf": "Upload PDF",
+    "pdfDropzone": "Drag PDF here or click to select",
+    "pdfDropzoneHint": "PDF files only, max 50 MB",
+    "uploading": "Uploading…",
+    "processing": "Processing…",
+    "ready": "Ready",
+    "error": "Processing failed",
+    "pending": "Pending",
+    "deleteSource": "Delete source",
+    "deleteSourceDescription": "This source and all its chunks will be permanently deleted.",
+    "noSources": "No sources yet",
+    "noSourcesHint": "Add a PDF, URL, or YouTube video.",
+    "uploadSuccess": "Source is being processed",
+    "dragActive": "Drop PDF here"
+  },
   "notebooks": {
     "title": "My Notebooks",
     "empty": "No notebooks yet",

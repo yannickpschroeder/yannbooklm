@@ -10,6 +10,24 @@
   "navigation": {
     "switchLanguage": "English"
   },
+  "sources": {
+    "title": "Quellen",
+    "addSource": "Quelle hinzufügen",
+    "addPdf": "PDF hochladen",
+    "pdfDropzone": "PDF hierher ziehen oder klicken",
+    "pdfDropzoneHint": "Nur PDF-Dateien, max. 50 MB",
+    "uploading": "Wird hochgeladen…",
+    "processing": "Wird verarbeitet…",
+    "ready": "Bereit",
+    "error": "Fehler beim Verarbeiten",
+    "pending": "Ausstehend",
+    "deleteSource": "Quelle löschen",
+    "deleteSourceDescription": "Diese Quelle und alle zugehörigen Chunks werden unwiderruflich gelöscht.",
+    "noSources": "Noch keine Quellen",
+    "noSourcesHint": "Füge eine PDF, URL oder YouTube-Video hinzu.",
+    "uploadSuccess": "Quelle wird verarbeitet",
+    "dragActive": "PDF hier ablegen"
+  },
   "notebooks": {
     "title": "Meine Notizbücher",
     "empty": "Noch keine Notizbücher",
