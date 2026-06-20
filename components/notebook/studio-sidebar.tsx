@@ -11,7 +11,7 @@ import {
   StickyNote,
   Trash2,
   BookmarkPlus,
-  Bookmarks,
+  Library,
   FileText,
   Table2,
 } from "lucide-react"
@@ -449,7 +449,7 @@ export function StudioSidebar({
                               <BookmarkPlus className="size-4" />{t("setAsSource")}
                             </DropdownMenuItem>
                             <DropdownMenuItem className="whitespace-nowrap" onClick={handleSetAllAsSource}>
-                              <Bookmarks className="size-4" />{t("setAllAsSource")}
+                              <Library className="size-4" />{t("setAllAsSource")}
                             </DropdownMenuItem>
                             <DropdownMenuItem className="whitespace-nowrap" onClick={() => item.note && handleExportToDocs(item.note)} disabled={!item.note}>
                               <FileText className="size-4" />{t("exportToDocs")}
