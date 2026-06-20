@@ -28,8 +28,8 @@ export async function GET(
 
   if (!source) return new Response("Not found", { status: 404 })
 
-  // Get the first parent chunk (representative content)
-  const [chunk] = await db
+  // Load all parent chunks ordered by position
+  const chunks = await db
     .select({
       content: parentChunks.content,
       positionStart: parentChunks.positionStart,
@@ -38,7 +38,8 @@ export async function GET(
     .from(parentChunks)
     .where(eq(parentChunks.sourceId, sourceId))
     .orderBy(asc(parentChunks.positionStart), asc(parentChunks.createdAt))
-    .limit(1)
+
+  const content = chunks.map((c) => c.content).join("\n\n")
 
   return Response.json({
     id: `${sourceId}-preview`,
@@ -46,8 +47,8 @@ export async function GET(
     sourceTitle: source.title,
     sourceType: source.type,
     url: source.url,
-    positionStart: chunk?.positionStart ?? null,
-    pageNumber: chunk?.pageNumber ?? null,
-    content: chunk?.content ?? "",
+    positionStart: chunks[0]?.positionStart ?? null,
+    pageNumber: chunks[0]?.pageNumber ?? null,
+    content,
   })
 }
