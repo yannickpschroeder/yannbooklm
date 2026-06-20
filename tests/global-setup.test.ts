@@ -48,6 +48,8 @@ export default async function globalSetup() {
     { max: 1 }
   )
   try {
+    // Remove any stale user with same email (different id from a previous run)
+    await sql`DELETE FROM users WHERE email = ${TEST_USER_EMAIL} AND id != ${TEST_USER_ID}`
     await sql`
       INSERT INTO users (id, name, email, email_verified)
       VALUES (${TEST_USER_ID}, ${TEST_USER_NAME}, ${TEST_USER_EMAIL}, NOW())
@@ -97,8 +99,14 @@ export default async function globalSetup() {
     endpoint: "http://localhost:4566",
     forcePathStyle: true,
     credentials: { accessKeyId: "test", secretAccessKey: "test" },
+    requestChecksumCalculation: "WHEN_REQUIRED",
+    responseChecksumValidation: "WHEN_REQUIRED",
   })
-  await s3.send(new CreateBucketCommand({ Bucket: TEST_BUCKET }))
+  try {
+    await s3.send(new CreateBucketCommand({ Bucket: TEST_BUCKET }))
+  } catch (e: unknown) {
+    if ((e as { name?: string }).name !== "BucketAlreadyOwnedByYou") throw e
+  }
   await s3.send(
     new PutBucketCorsCommand({
       Bucket: TEST_BUCKET,

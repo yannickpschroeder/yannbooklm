@@ -29,6 +29,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { AddSourceModal } from "@/components/sources/add-source-modal"
+import { FaYoutube } from "react-icons/fa"
 import { deleteSource, renameSource } from "@/lib/actions/sources"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
@@ -40,11 +41,15 @@ type ActiveUpload = {
   embedPct: number
 }
 
-function SourceIcon({ type, status }: { type: Source["type"]; status: Source["status"] }) {
+function SourceIcon({ type, status, url }: { type: Source["type"]; status: Source["status"]; url: Source["url"] }) {
   if (status === "processing" || status === "pending") {
     return <Loader2 className="size-4 shrink-0 animate-spin text-muted-foreground" />
   }
-  if (type === "url") return <Globe className="size-4 shrink-0 text-blue-400" />
+  if (type === "url") {
+    const isYoutube = url && /youtube\.com|youtu\.be/.test(url)
+    if (isYoutube) return <FaYoutube className="size-4 shrink-0 text-red-500" />
+    return <Globe className="size-4 shrink-0 text-blue-400" />
+  }
   return <FileText className="size-4 shrink-0 text-red-400" />
 }
 
@@ -247,7 +252,7 @@ export function SourceSidebar({
                     key={source.id}
                     className="group flex items-center gap-2 rounded-md px-2 py-2 hover:bg-muted"
                   >
-                    <SourceIcon type={source.type} status={source.status} />
+                    <SourceIcon type={source.type} status={source.status} url={source.url} />
                     <span className="flex-1 truncate text-sm" title={source.title}>
                       {source.title}
                     </span>

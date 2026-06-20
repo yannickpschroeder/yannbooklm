@@ -54,9 +54,7 @@ async function ingestPages(sourceId: string, pages: PdfPage[]): Promise<void> {
     positionEnd: p.positionEnd,
   }))
 
-  console.log(`[ingest] Inserting ${parentsWithIds.length} parent chunks for source ${sourceId}`)
   await db.insert(parentChunks).values(parentsWithIds)
-  console.log(`[ingest] Parent chunks inserted, IDs: ${parentsWithIds.map((p) => p.id).join(", ")}`)
 
   const allChildren = parentChunkData.flatMap((parent, i) =>
     buildChildChunks(parent, i).map((child) => ({
@@ -64,8 +62,6 @@ async function ingestPages(sourceId: string, pages: PdfPage[]): Promise<void> {
       parentId: parentsWithIds[i].id,
     }))
   )
-
-  console.log(`[ingest] ${allChildren.length} child chunks to embed, unique parentIds: ${[...new Set(allChildren.map((c) => c.parentId))].length}`)
 
   const totalBatches = Math.ceil(allChildren.length / EMBED_BATCH_SIZE)
 
@@ -76,8 +72,6 @@ async function ingestPages(sourceId: string, pages: PdfPage[]): Promise<void> {
 
     const batchIndex = Math.floor(i / EMBED_BATCH_SIZE)
     const progress = Math.round(((batchIndex + 1) / totalBatches) * 100)
-    const batchParentIds = [...new Set(batch.map((c) => c.parentId))]
-    console.log(`[ingest] Batch ${batchIndex + 1}/${totalBatches}: inserting ${batch.length} children, parentIds: ${batchParentIds.join(", ")}`)
 
     await Promise.all([
       db.insert(childChunks).values(
