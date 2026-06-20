@@ -130,7 +130,7 @@ function SourceDetailPanel({
               )}
             </button>
             {summaryOpen && (
-              <div className="max-h-64 overflow-y-auto border-t border-violet-500/20 px-3 py-5 text-sm leading-relaxed text-foreground">
+              <div className="max-h-64 overflow-y-auto border-t border-violet-500/20 p-5 text-sm leading-relaxed text-foreground">
                 <Markdown remarkPlugins={[remarkGfm]}>{chunk.sourceSummary}</Markdown>
                 {chunk.sourceTopics && chunk.sourceTopics.length > 0 && (
                   <div className="mt-3 flex flex-wrap gap-1.5">
