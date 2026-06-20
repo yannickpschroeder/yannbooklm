@@ -283,7 +283,7 @@ export function StudioSidebar({
                 variant="outline"
                 size="sm"
                 onClick={handleSetAsSource}
-                disabled={isSettingSource}
+                disabled={isSettingSource || editContent.trim().length < 5}
               >
                 {t("setAsSource")}
               </Button>
