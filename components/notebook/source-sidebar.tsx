@@ -431,8 +431,8 @@ export function SourceSidebar({
                 const readySources = filtered.filter((s) => s.status === "ready")
                 const allEnabled = readySources.length > 0 && readySources.every((s) => enabledMap[s.id] ?? true)
                 return (
-                  <div className="flex items-center px-2 py-1">
-                    <span className="flex-1 text-xs text-muted-foreground">{t("selectAll")}</span>
+                  <div className="flex items-center justify-end gap-2 px-2 py-1">
+                    <span className="text-xs text-muted-foreground">{t("selectAll")}</span>
                     <input
                       type="checkbox"
                       checked={allEnabled}
