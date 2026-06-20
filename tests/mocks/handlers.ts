@@ -102,4 +102,60 @@ export const handlers = [
   http.get("https://r.jina.ai/*", () =>
     HttpResponse.json({ error: "Jina AI should not be called in tests" }, { status: 500 })
   ),
+
+  // ── Anthropic Claude API ──────────────────────────────────────────────────────
+  http.post("https://api.anthropic.com/v1/messages", async ({ request }) => {
+    const body = (await request.json()) as {
+      stream?: boolean
+      messages?: { content: string }[]
+    }
+    const isStreaming = body.stream === true
+
+    // Detect summary requests (non-streaming, from generateSourceMeta)
+    if (!isStreaming) {
+      return HttpResponse.json({
+        id: "msg_test_summary",
+        type: "message",
+        role: "assistant",
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              summary: "Dies ist ein **Reiseführer** über eine griechische Insel mit **Sehenswürdigkeiten**, **Kultur** und **praktischen Reisetipps**.",
+              topics: ["Was sind die Sehenswürdigkeiten?", "Wie ist das Klima?", "Welche Strände gibt es?"],
+            }),
+          },
+        ],
+        model: "claude-sonnet-4-6",
+        stop_reason: "end_turn",
+        usage: { input_tokens: 100, output_tokens: 50 },
+      })
+    }
+
+    // Streaming chat response — SSE format (ai-sdk/anthropic expects this)
+    const encoder = new TextEncoder()
+    const stream = new ReadableStream({
+      start(controller) {
+        const events = [
+          `event: message_start\ndata: ${JSON.stringify({ type: "message_start", message: { id: "msg_test", type: "message", role: "assistant", content: [], model: "claude-sonnet-4-6", stop_reason: null, usage: { input_tokens: 100, output_tokens: 0 } } })}\n\n`,
+          `event: content_block_start\ndata: ${JSON.stringify({ type: "content_block_start", index: 0, content_block: { type: "text", text: "" } })}\n\n`,
+          `event: content_block_delta\ndata: ${JSON.stringify({ type: "content_block_delta", index: 0, delta: { type: "text_delta", text: "Kreta hat viele Sehenswürdigkeiten. Der Palast von Knossos ist besonders bekannt. [1] Auch die Samaria-Schlucht ist sehr beeindruckend. [1]" } })}\n\n`,
+          `event: content_block_stop\ndata: ${JSON.stringify({ type: "content_block_stop", index: 0 })}\n\n`,
+          `event: message_delta\ndata: ${JSON.stringify({ type: "message_delta", delta: { stop_reason: "end_turn", stop_sequence: null }, usage: { output_tokens: 30 } })}\n\n`,
+          `event: message_stop\ndata: ${JSON.stringify({ type: "message_stop" })}\n\n`,
+        ]
+        for (const event of events) {
+          controller.enqueue(encoder.encode(event))
+        }
+        controller.close()
+      },
+    })
+
+    return new HttpResponse(stream, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+      },
+    })
+  }),
 ]

@@ -63,8 +63,11 @@ export async function ingestUrl(sourceId: string, url: string): Promise<void> {
     const { title, pages } = await scrapeUrl(url)
     await db.update(sources).set({ title }).where(eq(sources.id, sourceId))
     await ingestPages(sourceId, pages)
-    const { summary, topics } = await generateSourceMeta(pages)
-    await db.update(sources).set({ status: "ready", summary, suggestedTopics: topics }).where(eq(sources.id, sourceId))
+    const meta = await generateSourceMeta(pages).catch((err) => {
+      console.warn(`[ingest] Summary generation failed for ${sourceId}:`, err)
+      return { summary: null, topics: [] }
+    })
+    await db.update(sources).set({ status: "ready", summary: meta.summary, suggestedTopics: meta.topics }).where(eq(sources.id, sourceId))
   } catch (err) {
     console.error(`[ingest] URL ingestion failed for source ${sourceId}:`, err)
     await db.delete(sources).where(eq(sources.id, sourceId))
@@ -78,8 +81,11 @@ export async function ingestYoutube(sourceId: string, url: string): Promise<void
     await db.update(sources).set({ title }).where(eq(sources.id, sourceId))
     await ingestPrebuiltChunks(sourceId, parents, children)
     const pages = parents.map((p) => ({ pageNumber: p.pageNumber, content: p.content }))
-    const { summary, topics } = await generateSourceMeta(pages)
-    await db.update(sources).set({ status: "ready", summary, suggestedTopics: topics }).where(eq(sources.id, sourceId))
+    const meta = await generateSourceMeta(pages).catch((err) => {
+      console.warn(`[ingest] Summary generation failed for ${sourceId}:`, err)
+      return { summary: null, topics: [] }
+    })
+    await db.update(sources).set({ status: "ready", summary: meta.summary, suggestedTopics: meta.topics }).where(eq(sources.id, sourceId))
   } catch (err) {
     console.error(`[ingest] YouTube ingestion failed for source ${sourceId}:`, err)
     await db.delete(sources).where(eq(sources.id, sourceId))
@@ -91,8 +97,11 @@ export async function ingestPdf(sourceId: string, s3Key: string): Promise<void> 
     await db.update(sources).set({ status: "processing" }).where(eq(sources.id, sourceId))
     const { pages } = await parsePdf(s3Key, sourceId)
     await ingestPages(sourceId, pages)
-    const { summary, topics } = await generateSourceMeta(pages)
-    await db.update(sources).set({ status: "ready", summary, suggestedTopics: topics }).where(eq(sources.id, sourceId))
+    const meta = await generateSourceMeta(pages).catch((err) => {
+      console.warn(`[ingest] Summary generation failed for ${sourceId}:`, err)
+      return { summary: null, topics: [] }
+    })
+    await db.update(sources).set({ status: "ready", summary: meta.summary, suggestedTopics: meta.topics }).where(eq(sources.id, sourceId))
   } catch (err) {
     console.error(`[ingest] PDF ingestion failed for source ${sourceId}:`, err)
     await Promise.allSettled([
