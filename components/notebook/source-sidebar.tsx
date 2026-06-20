@@ -112,46 +112,47 @@ function SourceDetailPanel({
 
       <Separator />
 
-      {/* Quellenübersicht dropdown */}
-      {chunk.sourceSummary && (
-        <div className="shrink-0 border-b">
-          <button
-            onClick={() => setSummaryOpen((p) => !p)}
-            className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm hover:bg-muted/50"
-          >
-            <Sparkles className="size-3.5 shrink-0 text-primary" />
-            <span className="flex-1 font-medium">Quellenübersicht</span>
-            {summaryOpen ? (
-              <ChevronUp className="size-3.5 shrink-0 text-muted-foreground" />
-            ) : (
-              <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
-            )}
-          </button>
-          {summaryOpen && (
-            <div className="border-t bg-muted/30 px-4 py-3 text-sm leading-relaxed text-foreground">
-              <Markdown remarkPlugins={[remarkGfm]}>{chunk.sourceSummary}</Markdown>
-              {chunk.sourceTopics && chunk.sourceTopics.length > 0 && (
-                <div className="mt-3 flex flex-wrap gap-1.5">
-                  {chunk.sourceTopics.map((topic) => (
-                    <button
-                      key={topic}
-                      onClick={() =>
-                        window.dispatchEvent(new CustomEvent("notebook:ask", { detail: { text: topic } }))
-                      }
-                      className="rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-xs text-primary hover:bg-primary/20"
-                    >
-                      {topic}
-                    </button>
-                  ))}
-                </div>
+      {/* Content — scrollable, includes summary dropdown + full text */}
+      <div className="flex-1 overflow-y-auto text-sm leading-relaxed text-foreground">
+        {/* Quellenübersicht dropdown */}
+        {chunk.sourceSummary && (
+          <div className="border-b">
+            <button
+              onClick={() => setSummaryOpen((p) => !p)}
+              className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm hover:bg-muted/50"
+            >
+              <Sparkles className="size-3.5 shrink-0 text-primary" />
+              <span className="flex-1 font-medium">Quellenübersicht</span>
+              {summaryOpen ? (
+                <ChevronUp className="size-3.5 shrink-0 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
               )}
-            </div>
-          )}
-        </div>
-      )}
+            </button>
+            {summaryOpen && (
+              <div className="border-t bg-muted/30 px-4 py-3">
+                <Markdown remarkPlugins={[remarkGfm]}>{chunk.sourceSummary}</Markdown>
+                {chunk.sourceTopics && chunk.sourceTopics.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {chunk.sourceTopics.map((topic) => (
+                      <button
+                        key={topic}
+                        onClick={() =>
+                          window.dispatchEvent(new CustomEvent("notebook:ask", { detail: { text: topic } }))
+                        }
+                        className="rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-xs text-primary hover:bg-primary/20"
+                      >
+                        {topic}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
-      {/* Content — scrollable, Markdown */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 text-sm leading-relaxed text-foreground">
+        <div className="px-4 py-4">
         <Markdown
           remarkPlugins={[remarkGfm]}
           components={{
@@ -186,6 +187,7 @@ function SourceDetailPanel({
         >
           {resolveS3ImagesInContent(chunk.content)}
         </Markdown>
+        </div>
       </div>
 
       <Separator />
