@@ -9,6 +9,7 @@ import {
   ChevronLeft,
   MoreHorizontal,
   StickyNote,
+  Trash2,
 } from "lucide-react"
 import {
   FaMicrophone,
@@ -321,13 +322,21 @@ export function StudioSidebar({
             </div>
 
             {/* Title input */}
-            <div className="shrink-0 border-b px-4 py-3">
+            <div className="flex shrink-0 items-center gap-2 border-b px-4 py-3">
               <input
                 value={editTitle}
                 onChange={(e) => handleTitleChange(e.target.value)}
                 placeholder={t("defaultTitle")}
-                className="w-full bg-transparent text-lg font-semibold outline-none placeholder:text-muted-foreground"
+                className="min-w-0 flex-1 bg-transparent text-lg font-semibold outline-none placeholder:text-muted-foreground"
               />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-7 shrink-0 text-muted-foreground hover:text-destructive"
+                onClick={() => handleDeleteNote(activeNote.id)}
+              >
+                <Trash2 className="size-4" />
+              </Button>
             </div>
 
             {/* TipTap editor */}
