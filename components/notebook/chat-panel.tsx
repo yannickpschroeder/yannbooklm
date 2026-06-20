@@ -5,20 +5,23 @@ import { useChat } from "@ai-sdk/react"
 import { DefaultChatTransport, isTextUIPart } from "ai"
 import { ArrowRight, X, ExternalLink, FileText, Globe, Loader2 } from "lucide-react"
 import { FaYoutube } from "react-icons/fa"
+import Markdown from "react-markdown"
+import remarkGfm from "remark-gfm"
+import rehypeRaw from "rehype-raw"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import type { ChatMessage, CitationChunk } from "@/lib/types/chat"
 
-// ─── Citation badge helpers ────────────────────────────────────────────────────
+// ─── Citation badge ────────────────────────────────────────────────────────────
 
 function CitationBadge({
   citation,
-  onClick,
   active,
+  onClick,
 }: {
   citation: CitationChunk
-  onClick: () => void
   active: boolean
+  onClick: () => void
 }) {
   return (
     <button
@@ -36,76 +39,131 @@ function CitationBadge({
   )
 }
 
-type BadgeGroup = {
-  key: string
-  badges: CitationChunk[]
-}
+// ─── Markdown with inline citation badges ──────────────────────────────────────
 
-function CitationBadgeGroup({
-  group,
+function AssistantContent({
+  text,
+  citations,
   activeCitation,
   onCiteClick,
 }: {
-  group: BadgeGroup
+  text: string
+  citations: CitationChunk[]
   activeCitation: CitationChunk | null
   onCiteClick: (c: CitationChunk) => void
 }) {
-  const [expanded, setExpanded] = useState(false)
-  const visible = expanded ? group.badges : group.badges.slice(0, 3)
-  const hasMore = group.badges.length > 3
+  // Replace [N] markers with <cite data-idx="N"></cite> so rehype-raw can render them
+  const processed = text.replace(/\[(\d+)\]/g, '<cite data-idx="$1"></cite>')
 
   return (
-    <span className="inline-flex items-center gap-0.5 align-middle">
-      {visible.map((c) => (
-        <CitationBadge
-          key={c.id}
-          citation={c}
-          active={activeCitation?.id === c.id}
-          onClick={() => onCiteClick(c)}
-        />
-      ))}
-      {hasMore && (
-        <button
-          onClick={() => setExpanded((p) => !p)}
-          className="inline-flex h-[18px] items-center rounded-full bg-muted px-1.5 text-[10px] font-medium text-muted-foreground hover:bg-muted/80"
-        >
-          {expanded ? "⟨ ⟩" : "···"}
-        </button>
-      )}
-    </span>
+    <Markdown
+      remarkPlugins={[remarkGfm]}
+      rehypePlugins={[rehypeRaw]}
+      components={{
+        // Inline citation badge
+        cite(props) {
+          const { node: _node, ...rest } = props
+          const idx = (rest as Record<string, string>)["data-idx"]
+          if (!idx) return null
+          const citation = citations[parseInt(idx) - 1]
+          if (!citation) return null
+          return (
+            <CitationBadge
+              citation={citation}
+              active={activeCitation?.id === citation.id}
+              onClick={() => onCiteClick(citation)}
+            />
+          )
+        },
+        // Markdown element styling
+        p(props) {
+          const { node: _node, children, ...rest } = props
+          return <p className="mb-3 last:mb-0" {...rest}>{children}</p>
+        },
+        ul(props) {
+          const { node: _node, children, ...rest } = props
+          return <ul className="mb-3 list-disc space-y-1 pl-5 last:mb-0" {...rest}>{children}</ul>
+        },
+        ol(props) {
+          const { node: _node, children, ...rest } = props
+          return <ol className="mb-3 list-decimal space-y-1 pl-5 last:mb-0" {...rest}>{children}</ol>
+        },
+        li(props) {
+          const { node: _node, children, ...rest } = props
+          return <li {...rest}>{children}</li>
+        },
+        h1(props) {
+          const { node: _node, children, ...rest } = props
+          return <h1 className="mb-2 mt-4 text-base font-semibold first:mt-0" {...rest}>{children}</h1>
+        },
+        h2(props) {
+          const { node: _node, children, ...rest } = props
+          return <h2 className="mb-2 mt-4 text-sm font-semibold first:mt-0" {...rest}>{children}</h2>
+        },
+        h3(props) {
+          const { node: _node, children, ...rest } = props
+          return <h3 className="mb-1 mt-3 text-sm font-medium first:mt-0" {...rest}>{children}</h3>
+        },
+        blockquote(props) {
+          const { node: _node, children, ...rest } = props
+          return (
+            <blockquote
+              className="mb-3 border-l-2 border-muted-foreground/30 pl-4 text-muted-foreground last:mb-0"
+              {...rest}
+            >
+              {children}
+            </blockquote>
+          )
+        },
+        code(props) {
+          const { node: _node, children, className, ...rest } = props
+          const isBlock = Boolean(className?.startsWith("language-"))
+          if (isBlock) {
+            return (
+              <code className="block overflow-x-auto rounded-md bg-muted px-3 py-2 text-xs" {...rest}>
+                {children}
+              </code>
+            )
+          }
+          return (
+            <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs" {...rest}>{children}</code>
+          )
+        },
+        pre(props) {
+          const { node: _node, children, ...rest } = props
+          return <pre className="mb-3 last:mb-0" {...rest}>{children}</pre>
+        },
+        strong(props) {
+          const { node: _node, children, ...rest } = props
+          return <strong className="font-semibold" {...rest}>{children}</strong>
+        },
+        em(props) {
+          const { node: _node, children, ...rest } = props
+          return <em className="italic" {...rest}>{children}</em>
+        },
+        a(props) {
+          const { node: _node, children, href, ...rest } = props
+          return (
+            <a
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary underline underline-offset-2 hover:no-underline"
+              {...rest}
+            >
+              {children}
+            </a>
+          )
+        },
+        hr(props) {
+          const { node: _node, ...rest } = props
+          return <hr className="my-4 border-border" {...rest} />
+        },
+      }}
+    >
+      {processed}
+    </Markdown>
   )
-}
-
-function renderAssistantText(
-  text: string,
-  citations: CitationChunk[],
-  activeCitation: CitationChunk | null,
-  onCiteClick: (c: CitationChunk) => void,
-) {
-  // Split on sequences of consecutive [N] markers
-  const segments = text.split(/(\[\d+\](?:\s*\[\d+\])*)/g)
-
-  return segments.map((seg, i) => {
-    const badgeMatches = [...seg.matchAll(/\[(\d+)\]/g)]
-    if (badgeMatches.length === 0) {
-      return <span key={i}>{seg}</span>
-    }
-
-    const badges = badgeMatches
-      .map((m) => citations[parseInt(m[1]) - 1])
-      .filter(Boolean) as CitationChunk[]
-
-    if (badges.length === 0) return <span key={i}>{seg}</span>
-
-    return (
-      <CitationBadgeGroup
-        key={i}
-        group={{ key: `group-${i}`, badges }}
-        activeCitation={activeCitation}
-        onCiteClick={onCiteClick}
-      />
-    )
-  })
 }
 
 // ─── Citation preview panel ───────────────────────────────────────────────────
@@ -121,9 +179,11 @@ function CitationPreview({
     if (citation.sourceType === "youtube" && citation.url && citation.positionStart != null) {
       const videoId = citation.url.match(/(?:youtube\.com\/watch\?.*v=|youtu\.be\/)([\w-]{11})/)?.[1]
       if (videoId) {
+        const m = Math.floor(citation.positionStart / 60)
+        const s = String(citation.positionStart % 60).padStart(2, "0")
         return {
           href: `https://www.youtube.com/watch?v=${videoId}&t=${citation.positionStart}`,
-          label: `${Math.floor(citation.positionStart / 60)}:${String(citation.positionStart % 60).padStart(2, "0")}`,
+          label: `${m}:${s}`,
         }
       }
     }
@@ -141,11 +201,7 @@ function CitationPreview({
   })()
 
   const SourceIcon =
-    citation.sourceType === "youtube"
-      ? FaYoutube
-      : citation.sourceType === "url"
-        ? Globe
-        : FileText
+    citation.sourceType === "youtube" ? FaYoutube : citation.sourceType === "url" ? Globe : FileText
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -238,7 +294,7 @@ export function ChatPanel({
     <div className="flex flex-1 overflow-hidden">
       {/* Chat column */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Messages area */}
+        {/* Messages */}
         <div className="flex-1 overflow-y-auto px-4 py-6">
           {messages.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
@@ -253,30 +309,36 @@ export function ChatPanel({
               {messages.map((msg) => {
                 const textParts = msg.parts.filter(isTextUIPart)
                 const citations = msg.metadata?.citations ?? []
+                const fullText = textParts.map((p) => p.text).join("")
 
                 if (msg.role === "user") {
                   return (
                     <div key={msg.id} className="flex justify-end">
                       <div className="max-w-[80%] rounded-2xl rounded-tr-sm bg-primary px-4 py-2.5 text-sm text-primary-foreground">
-                        {textParts.map((p) => p.text).join("")}
+                        {fullText}
                       </div>
                     </div>
                   )
                 }
 
-                const fullText = textParts.map((p) => p.text).join("")
+                const uniqueCitations = [
+                  ...new Map(citations.map((c) => [c.id, c])).values(),
+                ]
 
                 return (
-                  <div key={msg.id} className="flex flex-col gap-1">
-                    <div className="text-sm leading-relaxed text-foreground">
-                      {citations.length > 0
-                        ? renderAssistantText(fullText, citations, activeCitation, handleCiteClick)
-                        : fullText}
+                  <div key={msg.id} className="flex flex-col gap-2">
+                    <div className="text-sm leading-relaxed">
+                      <AssistantContent
+                        text={fullText}
+                        citations={citations}
+                        activeCitation={activeCitation}
+                        onCiteClick={handleCiteClick}
+                      />
                     </div>
-                    {citations.length > 0 && (
-                      <div className="mt-1 flex flex-wrap items-center gap-1">
+                    {uniqueCitations.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-1">
                         <span className="text-xs text-muted-foreground">Quellen:</span>
-                        {[...new Map(citations.map((c) => [c.id, c])).values()].map((c) => (
+                        {uniqueCitations.map((c) => (
                           <CitationBadge
                             key={c.id}
                             citation={c}
@@ -290,29 +352,26 @@ export function ChatPanel({
                 )
               })}
 
-              {isStreaming &&
-                messages[messages.length - 1]?.role !== "assistant" && (
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Loader2 className="size-4 animate-spin" />
-                    <span className="text-sm">Denkt nach…</span>
-                  </div>
-                )}
+              {isStreaming && messages[messages.length - 1]?.role !== "assistant" && (
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Loader2 className="size-4 animate-spin" />
+                  <span className="text-sm">Denkt nach…</span>
+                </div>
+              )}
 
               <div ref={bottomRef} />
             </div>
           )}
         </div>
 
-        {/* Input area */}
+        {/* Input */}
         <div className="shrink-0 border-t p-4">
           <form onSubmit={handleSubmit}>
             <div className="flex items-center gap-2 rounded-xl border bg-muted/40 px-4 py-3">
               <input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder={
-                  readySourceCount === 0 ? "Keine Quellen verfügbar…" : "Text eingeben…"
-                }
+                placeholder={readySourceCount === 0 ? "Keine Quellen verfügbar…" : "Text eingeben…"}
                 disabled={readySourceCount === 0 || isStreaming}
                 className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
               />
@@ -341,7 +400,7 @@ export function ChatPanel({
         </div>
       </div>
 
-      {/* Citation preview panel */}
+      {/* Citation preview */}
       {activeCitation && (
         <div className="w-80 shrink-0 border-l bg-background">
           <CitationPreview citation={activeCitation} onClose={() => setActiveCitation(null)} />
