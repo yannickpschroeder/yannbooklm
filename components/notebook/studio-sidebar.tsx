@@ -28,6 +28,7 @@ import {
 import { cn } from "@/lib/utils"
 import { devTodo } from "@/lib/dev-todo"
 import { createNote, updateNote, deleteNote } from "@/lib/actions/notes"
+import { exportNoteToGoogleDocs } from "@/lib/google-docs-export"
 import { NoteEditor } from "./note-editor"
 import { toast } from "sonner"
 import type { Note, StudioOutput } from "@/db/schema"
@@ -205,6 +206,17 @@ export function StudioSidebar({
     }
   }
 
+  async function handleExportToDocs(note: Note) {
+    try {
+      const url = await exportNoteToGoogleDocs(note.title, note.content)
+      window.open(url, "_blank", "noopener,noreferrer")
+    } catch (err) {
+      if (err instanceof Error && err.message !== "OAuth failed") {
+        toast.error(err.message)
+      }
+    }
+  }
+
   async function handleDeleteNote(noteId: string) {
     if (debounceRef.current) clearTimeout(debounceRef.current)
     setNotesList((prev) => prev.filter((n) => n.id !== noteId))
@@ -357,7 +369,7 @@ export function StudioSidebar({
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => devTodo("setAsSource")}>{t("setAsSource")}</DropdownMenuItem>
                             <DropdownMenuItem onClick={() => devTodo("setAllAsSource")}>{t("setAllAsSource")}</DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => devTodo("exportToDocs")}>{t("exportToDocs")}</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => item.note && handleExportToDocs(item.note)} disabled={!item.note}>{t("exportToDocs")}</DropdownMenuItem>
                             <DropdownMenuItem onClick={() => devTodo("exportToSheets")}>{t("exportToSheets")}</DropdownMenuItem>
                             {item.kind === "note" && (
                               <DropdownMenuItem
