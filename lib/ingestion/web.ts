@@ -52,7 +52,8 @@ async function fetchWithReadability(url: string): Promise<WebContent> {
 }
 
 async function fetchWithJina(url: string): Promise<WebContent> {
-  const jinaUrl = `https://r.jina.ai/${url}`
+  const jinaBase = process.env.JINA_BASE_URL ?? "https://r.jina.ai"
+  const jinaUrl = `${jinaBase}/${url}`
   const res = await fetch(jinaUrl, {
     headers: { Accept: "text/plain", "X-Return-Format": "text" },
     signal: AbortSignal.timeout(30_000),
