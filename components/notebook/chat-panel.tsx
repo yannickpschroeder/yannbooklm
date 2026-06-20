@@ -523,7 +523,7 @@ export function ChatPanel({
               <input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder={readySourceCount === 0 ? "Keine Quellen verfügbar…" : "Text eingeben…"}
+                placeholder={readySourceCount === 0 ? "Keine Quellen verfügbar..." : "Text eingeben..."}
                 disabled={readySourceCount === 0 || isStreaming}
                 className="placeholder:text-muted-foreground flex-1 bg-transparent text-sm outline-none disabled:cursor-not-allowed disabled:opacity-50"
               />

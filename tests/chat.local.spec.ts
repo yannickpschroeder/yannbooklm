@@ -37,10 +37,14 @@ async function ingestPdf(page: Page, pdfPath: string) {
     page.getByRole("button", { name: "Dateien hochladen" }).click(),
   ])
   await fileChooser.setFiles(pdfPath)
+
+  await page.getByRole("dialog").waitFor({ state: "detached" })
+
   // The page reloads automatically when the source becomes ready.
   // readySourceCount > 0 only after that reload — so this is the true readiness signal.
-  await expect(page.getByPlaceholder("Text eingeben…")).toBeVisible({
-    timeout: 10 * 60 * 1000,
+  // Ingestion (upload → parse → embed) can take up to a few minutes; use explicit timeout.
+  await expect(page.getByPlaceholder("Text eingeben", { exact: false })).not.toBeDisabled({
+    timeout: 5 * 60_000,
   })
 }
 
@@ -57,29 +61,32 @@ test.describe("RAG Chat @local", () => {
 
   test("Frage stellen und Antwort mit Zitat-Badge erhalten", async ({ page }) => {
     notebookName = "E2E Chat Test"
+    // Clean up any notebook left over from a failed previous run
+    await tryDeleteNotebook(page, notebookName)
     await createNotebook(page, notebookName)
     await ingestPdf(page, KRETA_PDF)
 
-    const input = page.getByPlaceholder("Text eingeben…")
+    const input = page.getByPlaceholder("Text eingeben", { exact: false })
     await input.fill("Was sind die wichtigsten Sehenswürdigkeiten auf Kreta?")
     await page.keyboard.press("Enter")
 
     // Wait for streaming to complete — assistant message with at least one citation badge
-    await expect(page.locator('[title]').filter({ hasText: /^\d+$/ }).first()).toBeVisible({
+    await expect(page.locator("[title]").filter({ hasText: /^\d+$/ }).first()).toBeVisible({
       timeout: 60_000,
     })
   })
 
   test("Zitat-Badge klicken öffnet Quellendetail", async ({ page }) => {
     notebookName = "E2E Citation Test"
+    await tryDeleteNotebook(page, notebookName)
     await createNotebook(page, notebookName)
     await ingestPdf(page, KRETA_PDF)
 
-    const input = page.getByPlaceholder("Text eingeben…")
+    const input = page.getByPlaceholder("Text eingeben", { exact: false })
     await input.fill("Was sind die wichtigsten Sehenswürdigkeiten auf Kreta?")
     await page.keyboard.press("Enter")
 
-    const badge = page.locator('[title]').filter({ hasText: /^\d+$/ }).first()
+    const badge = page.locator("[title]").filter({ hasText: /^\d+$/ }).first()
     await expect(badge).toBeVisible({ timeout: 60_000 })
 
     await badge.click()
@@ -88,6 +95,7 @@ test.describe("RAG Chat @local", () => {
 
   test("Quelle in Sidebar klicken öffnet Detailansicht", async ({ page }) => {
     notebookName = "E2E Source Detail Test"
+    await tryDeleteNotebook(page, notebookName)
     await createNotebook(page, notebookName)
     await ingestPdf(page, KRETA_PDF)
 
@@ -100,6 +108,7 @@ test.describe("RAG Chat @local", () => {
 
   test("Topic-Badge klicken sendet Frage an Chat", async ({ page }) => {
     notebookName = "E2E Topic Badge Test"
+    await tryDeleteNotebook(page, notebookName)
     await createNotebook(page, notebookName)
     await ingestPdf(page, KRETA_PDF)
 
@@ -113,6 +122,10 @@ test.describe("RAG Chat @local", () => {
 
     const topicText = await topicBadge.textContent()
     await topicBadge.click()
-    await expect(page.getByText(topicText!, { exact: false })).toBeVisible({ timeout: 30_000 })
+
+    // Restrict to the chat message bubble (bg-primary) to avoid matching the sidebar badge
+    await expect(
+      page.locator(".bg-primary").filter({ hasText: topicText! })
+    ).toBeVisible({ timeout: 30_000 })
   })
 })
