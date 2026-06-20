@@ -171,6 +171,7 @@ export const notes = pgTable("notes", {
   notebookId: uuid("notebook_id")
     .notNull()
     .references(() => notebooks.id, { onDelete: "cascade" }),
+  title: text("title").notNull().default("Neue Notiz"),
   content: text("content").notNull(),
   sourceMessageId: uuid("source_message_id").references(() => messages.id, {
     onDelete: "set null",

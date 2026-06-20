@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useTranslations } from "next-intl"
 import {
   PanelRightClose,
@@ -72,7 +72,7 @@ function relativeTime(date: Date): string {
 }
 
 function noteToOutputItem(note: Note): OutputItem {
-  return { id: note.id, kind: "note", title: note.content.trim(), createdAt: note.createdAt, note }
+  return { id: note.id, kind: "note", title: note.title, createdAt: note.createdAt, note }
 }
 
 function studioOutputToItem(o: StudioOutput, tStudio: (k: string) => string): OutputItem {
@@ -97,8 +97,9 @@ export function StudioSidebar({
   const [collapsed, setCollapsed] = useState(false)
   const [notesList, setNotesList] = useState<Note[]>(initialNotes)
   const [activeNote, setActiveNote] = useState<Note | null>(null)
+  const [editTitle, setEditTitle] = useState("")
   const [editContent, setEditContent] = useState("")
-  const [isSaving, setIsSaving] = useState(false)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const outputs: OutputItem[] = [
     ...notesList.map(noteToOutputItem),
@@ -108,7 +109,7 @@ export function StudioSidebar({
   useEffect(() => {
     async function onSaveAsNote(e: Event) {
       const { content, sourceMessageId } = (e as CustomEvent<{ content: string; sourceMessageId?: string }>).detail
-      const note = await createNote(notebookId, content, sourceMessageId)
+      const note = await createNote(notebookId, t("defaultTitle"), content, sourceMessageId)
       if (!note) return
       setNotesList((prev) => [note, ...prev])
       toast.success(t("createSuccess"))
@@ -119,7 +120,7 @@ export function StudioSidebar({
   }, [notebookId, collapsed, t])
 
   async function handleNewNote() {
-    const note = await createNote(notebookId, "")
+    const note = await createNote(notebookId, t("defaultTitle"), "")
     if (!note) return
     setNotesList((prev) => [note, ...prev])
     openNoteDetail(note)
@@ -127,12 +128,14 @@ export function StudioSidebar({
 
   function openNoteDetail(note: Note) {
     setActiveNote(note)
+    setEditTitle(note.title)
     setEditContent(note.content)
     setCollapsed(false)
     onNoteModeChange(true)
   }
 
   function closeNoteDetail() {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
     setActiveNote(null)
     onNoteModeChange(false)
   }
@@ -142,20 +145,26 @@ export function StudioSidebar({
     else devTodo(item.kind)
   }
 
-  async function handleSaveNote() {
-    if (!activeNote) return
-    setIsSaving(true)
-    try {
-      await updateNote(activeNote.id, notebookId, editContent)
-      setNotesList((prev) => prev.map((n) => (n.id === activeNote.id ? { ...n, content: editContent } : n)))
-      setActiveNote((prev) => (prev ? { ...prev, content: editContent } : null))
-      toast.success(t("saveSuccess"))
-    } finally {
-      setIsSaving(false)
-    }
+  function scheduleSave(title: string, content: string, noteId: string) {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(async () => {
+      await updateNote(noteId, notebookId, title, content)
+      setNotesList((prev) => prev.map((n) => (n.id === noteId ? { ...n, title, content } : n)))
+    }, 1000)
+  }
+
+  function handleTitleChange(value: string) {
+    setEditTitle(value)
+    if (activeNote) scheduleSave(value, editContent, activeNote.id)
+  }
+
+  function handleContentChange(value: string) {
+    setEditContent(value)
+    if (activeNote) scheduleSave(editTitle, value, activeNote.id)
   }
 
   async function handleDeleteNote(noteId: string) {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
     setNotesList((prev) => prev.filter((n) => n.id !== noteId))
     if (activeNote?.id === noteId) closeNoteDetail()
     await deleteNote(noteId, notebookId)
@@ -201,12 +210,21 @@ export function StudioSidebar({
               <Button variant="ghost" size="icon" className="size-7 shrink-0" onClick={closeNoteDetail}>
                 <ChevronLeft className="size-4" />
               </Button>
-              <span className="text-xs text-muted-foreground">{t("newNote")}</span>
               {activeNote.sourceMessageId && (
-                <span className="ml-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
                   {t("fromChat")}
                 </span>
               )}
+            </div>
+
+            {/* Title input */}
+            <div className="shrink-0 border-b px-4 py-3">
+              <input
+                value={editTitle}
+                onChange={(e) => handleTitleChange(e.target.value)}
+                placeholder={t("defaultTitle")}
+                className="w-full bg-transparent text-lg font-semibold outline-none placeholder:text-muted-foreground"
+              />
             </div>
 
             {/* TipTap editor */}
@@ -214,16 +232,13 @@ export function StudioSidebar({
               key={activeNote.id}
               initialContent={editContent}
               placeholder={t("placeholder")}
-              onChange={setEditContent}
+              onChange={handleContentChange}
             />
 
             {/* Footer */}
-            <div className="flex shrink-0 items-center justify-between border-t p-3">
+            <div className="shrink-0 border-t p-3">
               <Button variant="outline" size="sm" onClick={() => devTodo("setAsSource")}>
                 {t("setAsSource")}
-              </Button>
-              <Button size="sm" onClick={handleSaveNote} disabled={isSaving}>
-                {t("save")}
               </Button>
             </div>
           </div>

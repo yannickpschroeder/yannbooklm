@@ -66,6 +66,7 @@
   },
   "notes": {
     "title": "Notes",
+    "defaultTitle": "New Note",
     "newNote": "New Note",
     "saveAsNote": "Save as note",
     "placeholder": "Enter note...",

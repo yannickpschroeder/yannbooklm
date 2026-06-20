@@ -23,7 +23,7 @@ async function requireNoteOwner(noteId: string, userId: string) {
   return note ?? null
 }
 
-export async function createNote(notebookId: string, content: string, sourceMessageId?: string) {
+export async function createNote(notebookId: string, title: string, content: string, sourceMessageId?: string) {
   const userId = await requireUser()
 
   const [notebook] = await db
@@ -47,18 +47,18 @@ export async function createNote(notebookId: string, content: string, sourceMess
 
   const [note] = await db
     .insert(notes)
-    .values({ notebookId, content, sourceMessageId: validSourceMessageId })
+    .values({ notebookId, title, content, sourceMessageId: validSourceMessageId })
     .returning()
 
   revalidatePath(`/[locale]/app/${notebookId}`, "layout")
   return note
 }
 
-export async function updateNote(noteId: string, notebookId: string, content: string) {
+export async function updateNote(noteId: string, notebookId: string, title: string, content: string) {
   const userId = await requireUser()
   if (!(await requireNoteOwner(noteId, userId))) return
 
-  await db.update(notes).set({ content, updatedAt: new Date() }).where(eq(notes.id, noteId))
+  await db.update(notes).set({ title, content, updatedAt: new Date() }).where(eq(notes.id, noteId))
   revalidatePath(`/[locale]/app/${notebookId}`, "layout")
 }
 
