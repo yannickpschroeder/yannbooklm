@@ -52,8 +52,12 @@ function AssistantContent({
   activeCitation: CitationChunk | null
   onCiteClick: (c: CitationChunk) => void
 }) {
-  // Replace [N] markers with <cite data-idx="N"></cite> so rehype-raw can render them
-  const processed = text.replace(/\[(\d+)\]/g, '<cite data-idx="$1"></cite>')
+  // Only inject citation markup when we have metadata to back it up;
+  // otherwise [N] stays as plain text so it doesn't silently disappear.
+  const processed =
+    citations.length > 0
+      ? text.replace(/\[(\d+)\]/g, '<cite data-idx="$1"></cite>')
+      : text
 
   return (
     <Markdown
@@ -256,9 +260,11 @@ function CitationPreview({
 export function ChatPanel({
   notebookId,
   readySourceCount,
+  initialMessages,
 }: {
   notebookId: string
   readySourceCount: number
+  initialMessages?: ChatMessage[]
 }) {
   const [input, setInput] = useState("")
   const [activeCitation, setActiveCitation] = useState<CitationChunk | null>(null)
@@ -269,6 +275,7 @@ export function ChatPanel({
       api: "/api/chat",
       body: { notebookId },
     }),
+    messages: initialMessages,
   })
 
   const isStreaming = status === "streaming" || status === "submitted"
