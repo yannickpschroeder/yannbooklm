@@ -37,7 +37,7 @@ import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { deleteSource, renameSource } from "@/lib/actions/sources"
 import { onSourceView, openSourceView } from "@/lib/source-view-event"
-import { resolveS3ImageSrc } from "@/lib/s3-image-url"
+import { resolveS3ImagesInContent } from "@/lib/s3-image-url"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import type { Source } from "@/db/schema"
@@ -117,6 +117,13 @@ function SourceDetailPanel({
               const { node: _node, children, ...rest } = props
               return <p className="mb-3 last:mb-0" {...rest}>{children}</p>
             },
+            img(props) {
+              const { node: _node, src, alt, ...rest } = props
+              return (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={typeof src === "string" ? src : undefined} alt={alt ?? ""} className="my-3 w-full rounded-md object-cover" {...rest} />
+              )
+            },
             ul(props) {
               const { node: _node, children, ...rest } = props
               return <ul className="mb-3 list-disc space-y-1 pl-4 last:mb-0" {...rest}>{children}</ul>
@@ -133,17 +140,9 @@ function SourceDetailPanel({
               const { node: _node, children, ...rest } = props
               return <strong className="font-semibold" {...rest}>{children}</strong>
             },
-            img(props) {
-              const { node: _node, src, alt, ...rest } = props
-              const srcStr = typeof src === "string" ? src : undefined
-              return (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={resolveS3ImageSrc(srcStr)} alt={alt ?? ""} className="my-3 w-full rounded-md object-cover" {...rest} />
-              )
-            },
           }}
         >
-          {chunk.content}
+          {resolveS3ImagesInContent(chunk.content)}
         </Markdown>
       </div>
 
