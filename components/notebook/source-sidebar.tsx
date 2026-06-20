@@ -38,7 +38,7 @@ import { AddSourceModal } from "@/components/sources/add-source-modal"
 import { FaYoutube } from "react-icons/fa"
 import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
-import { deleteSource, renameSource } from "@/lib/actions/sources"
+import { deleteSource, renameSource, toggleSourceEnabled } from "@/lib/actions/sources"
 import { onSourceView, openSourceView } from "@/lib/source-view-event"
 import { resolveS3ImagesInContent } from "@/lib/s3-image-url"
 import { toast } from "sonner"
@@ -229,6 +229,9 @@ export function SourceSidebar({
   const [isPending, startTransition] = useTransition()
   const [activeChunk, setActiveChunk] = useState<CitationChunk | null>(null)
   const [loadingSourceId, setLoadingSourceId] = useState<string | null>(null)
+  const [enabledMap, setEnabledMap] = useState<Record<string, boolean>>(
+    () => Object.fromEntries(initialSources.map((s) => [s.id, s.enabled]))
+  )
 
   const processingSource = initialSources.find(
     (s) => s.status === "processing" || s.status === "pending"
@@ -323,6 +326,15 @@ export function SourceSidebar({
       await deleteSource(source.id, notebookId)
       toast.success("Quelle entfernt")
       window.location.reload()
+    })
+  }
+
+  function handleToggleEnabled(source: Source) {
+    const next = !(enabledMap[source.id] ?? true)
+    setEnabledMap((prev) => ({ ...prev, [source.id]: next }))
+    toggleSourceEnabled(source.id, notebookId, next).catch(() => {
+      setEnabledMap((prev) => ({ ...prev, [source.id]: !next }))
+      toast.error("Fehler beim Aktualisieren")
     })
   }
 
@@ -443,7 +455,10 @@ export function SourceSidebar({
                   filtered.map((source) => (
                     <li
                       key={source.id}
-                      className="group flex items-center gap-2 rounded-md px-2 py-2 hover:bg-muted"
+                      className={cn(
+                        "group flex items-center gap-2 rounded-md px-2 py-2 hover:bg-muted",
+                        !(enabledMap[source.id] ?? true) && "opacity-50"
+                      )}
                     >
                       {loadingSourceId === source.id ? (
                         <Loader2 className="size-4 shrink-0 animate-spin text-muted-foreground" />
@@ -458,6 +473,15 @@ export function SourceSidebar({
                       >
                         {source.title}
                       </button>
+                      <input
+                        type="checkbox"
+                        checked={enabledMap[source.id] ?? true}
+                        onChange={() => handleToggleEnabled(source)}
+                        onClick={(e) => e.stopPropagation()}
+                        disabled={source.status !== "ready"}
+                        className="size-3.5 shrink-0 cursor-pointer accent-primary disabled:cursor-default"
+                        title={(enabledMap[source.id] ?? true) ? "Quelle deaktivieren" : "Quelle aktivieren"}
+                      />
                       <DropdownMenu>
                         <DropdownMenuTrigger
                           className="shrink-0 rounded p-0.5 opacity-0 transition-opacity hover:bg-muted-foreground/20 group-hover:opacity-100 focus:opacity-100"

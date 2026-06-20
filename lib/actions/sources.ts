@@ -31,6 +31,22 @@ export async function renameSource(sourceId: string, notebookId: string, title: 
   revalidatePath(`/[locale]/app/${notebookId}`, "page")
 }
 
+export async function toggleSourceEnabled(sourceId: string, notebookId: string, enabled: boolean) {
+  const userId = await requireUser()
+
+  const [source] = await db
+    .select({ id: sources.id })
+    .from(sources)
+    .innerJoin(notebooks, eq(sources.notebookId, notebooks.id))
+    .where(and(eq(sources.id, sourceId), eq(notebooks.userId, userId)))
+    .limit(1)
+
+  if (!source) return
+
+  await db.update(sources).set({ enabled }).where(eq(sources.id, sourceId))
+  revalidatePath(`/[locale]/app/${notebookId}`, "page")
+}
+
 export async function deleteSource(sourceId: string, notebookId: string) {
   const userId = await requireUser()
 
