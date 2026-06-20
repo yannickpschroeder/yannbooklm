@@ -7,19 +7,16 @@ const KORFU_URL =
 const KRETA_PDF = path.join(__dirname, "fixtures/kreta-reisefuehrer.pdf")
 const YOUTUBE_URL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
 
-// Helper: create a notebook and navigate into it, returns notebookId
 async function createNotebook(page: Page, name: string) {
   await page.goto("/de/app")
   await page.waitForLoadState("domcontentloaded")
   await page.getByRole("button", { name: "Neues Notizbuch" }).click()
   await page.getByPlaceholder("Name des Notizbuchs").fill(name)
   await page.getByRole("dialog").getByRole("button", { name: "Erstellen" }).click()
-  // Wait for the new notebook card to appear in the list
   const card = page.locator('[data-slot="card"]').filter({ hasText: name }).first()
   await expect(card).toBeVisible({ timeout: 30_000 })
   await card.getByRole("link", { name: "Notizbuch öffnen" }).click()
   await page.waitForURL(/\/de\/app\/.+/)
-  // The add-source modal auto-opens on empty notebooks — close it so tests start clean
   const closeBtn = page.getByRole("dialog").getByRole("button", { name: "Schließen" })
   if (await closeBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
     await closeBtn.click()
@@ -27,37 +24,44 @@ async function createNotebook(page: Page, name: string) {
   return page.url().split("/").pop()!
 }
 
-async function deleteNotebook(page: Page, name: string) {
+async function tryDeleteNotebook(page: Page, name: string) {
   await page.goto("/de/app")
   const card = page.locator('[data-slot="card"]').filter({ hasText: name })
+  if (!(await card.isVisible({ timeout: 3_000 }).catch(() => false))) return
   await card.hover()
   await card.locator('[data-slot="dropdown-menu-trigger"]').click({ force: true })
   await page.getByText("Löschen").click()
   await page.getByRole("button", { name: "Ja, löschen" }).click()
-  await expect(page.getByText(name)).not.toBeVisible()
 }
 
 // @local
 test.describe("Sources @local", () => {
-  test("URL-Quelle hinzufügen und indizieren", async ({ page }) => {
-    await createNotebook(page, "E2E URL Test")
+  let notebookName = ""
 
-    // Open add-source modal
+  test.afterEach(async ({ page }) => {
+    if (notebookName) {
+      await tryDeleteNotebook(page, notebookName)
+      notebookName = ""
+    }
+  })
+
+  test("URL-Quelle hinzufügen und indizieren", async ({ page }) => {
+    notebookName = "E2E URL Test"
+    await createNotebook(page, notebookName)
+
     await page.getByRole("button", { name: "Quellen hinzufügen" }).click()
     await page.getByRole("button", { name: "Websites" }).click()
     await page.getByPlaceholder("https://example.com/artikel").fill(KORFU_URL)
     await page.getByRole("button", { name: "Hinzufügen" }).click()
 
-    // Wait until source appears as ready in the sidebar
     await expect(
       page.locator("aside").getByText("Korfu", { exact: false })
     ).toBeVisible({ timeout: 10 * 60 * 1000 })
-
-    await deleteNotebook(page, "E2E URL Test")
   })
 
   test("PDF-Quelle hochladen und indizieren", async ({ page }) => {
-    await createNotebook(page, "E2E PDF Test")
+    notebookName = "E2E PDF Test"
+    await createNotebook(page, notebookName)
 
     await page.getByRole("button", { name: "Quellen hinzufügen" }).click()
     const [fileChooser] = await Promise.all([
@@ -66,18 +70,15 @@ test.describe("Sources @local", () => {
     ])
     await fileChooser.setFiles(KRETA_PDF)
 
-    // Wait until source appears as ready in the sidebar
     await expect(
       page.locator("aside").getByText("kreta-reisefuehrer", { exact: false })
     ).toBeVisible({ timeout: 10 * 60 * 1000 })
-
-    await deleteNotebook(page, "E2E PDF Test")
   })
 
   test("Quelle umbenennen", async ({ page }) => {
-    await createNotebook(page, "E2E Rename Test")
+    notebookName = "E2E Rename Test"
+    await createNotebook(page, notebookName)
 
-    // Add URL source first
     await page.getByRole("button", { name: "Quellen hinzufügen" }).click()
     await page.getByRole("button", { name: "Websites" }).click()
     await page.getByPlaceholder("https://example.com/artikel").fill(KORFU_URL)
@@ -86,7 +87,6 @@ test.describe("Sources @local", () => {
       page.locator("aside").getByText("Korfu", { exact: false })
     ).toBeVisible({ timeout: 10 * 60 * 1000 })
 
-    // Rename via 3-dot menu
     const sourceItem = page.locator("aside li").filter({ hasText: "Korfu" })
     await sourceItem.hover()
     await sourceItem.getByRole("button", { name: "Optionen" }).click()
@@ -97,12 +97,11 @@ test.describe("Sources @local", () => {
 
     await expect(page.locator("aside").getByText("Korfu Reiseführer")).toBeVisible()
     await expect(page.locator("aside").getByText("Korfu und seine", { exact: false })).not.toBeVisible()
-
-    await deleteNotebook(page, "E2E Rename Test")
   })
 
   test("YouTube-Quelle hinzufügen und indizieren", async ({ page }) => {
-    await createNotebook(page, "E2E YouTube Test")
+    notebookName = "E2E YouTube Test"
+    await createNotebook(page, notebookName)
 
     await page.getByRole("button", { name: "Quellen hinzufügen" }).click()
     await page.getByRole("button", { name: "Websites" }).click()
@@ -112,12 +111,11 @@ test.describe("Sources @local", () => {
     await expect(
       page.locator("aside").getByText("Kreta Reiseführer", { exact: false })
     ).toBeVisible({ timeout: 10 * 60 * 1000 })
-
-    await deleteNotebook(page, "E2E YouTube Test")
   })
 
   test("Quelle löschen", async ({ page }) => {
-    await createNotebook(page, "E2E Delete Test")
+    notebookName = "E2E Delete Test"
+    await createNotebook(page, notebookName)
 
     await page.getByRole("button", { name: "Quellen hinzufügen" }).click()
     await page.getByRole("button", { name: "Websites" }).click()
@@ -127,14 +125,11 @@ test.describe("Sources @local", () => {
       page.locator("aside").getByText("Korfu", { exact: false })
     ).toBeVisible({ timeout: 10 * 60 * 1000 })
 
-    // Delete via 3-dot menu
     const sourceItem = page.locator("aside li").filter({ hasText: "Korfu" })
     await sourceItem.hover()
     await sourceItem.getByRole("button", { name: "Optionen" }).click()
     await page.getByText("Quelle entfernen").click()
 
     await expect(page.locator("aside").getByText("Korfu", { exact: false })).not.toBeVisible()
-
-    await deleteNotebook(page, "E2E Delete Test")
   })
 })
