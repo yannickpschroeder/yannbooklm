@@ -338,6 +338,20 @@ export function SourceSidebar({
     })
   }
 
+  function handleToggleAll(readySources: Source[]) {
+    const allEnabled = readySources.every((s) => enabledMap[s.id] ?? true)
+    const next = !allEnabled
+    setEnabledMap((prev) => ({
+      ...prev,
+      ...Object.fromEntries(readySources.map((s) => [s.id, next])),
+    }))
+    Promise.all(
+      readySources.map((s) =>
+        toggleSourceEnabled(s.id, notebookId, next).catch(() => undefined)
+      )
+    ).catch(() => toast.error("Fehler beim Aktualisieren"))
+  }
+
   async function handleSourceClick(source: Source) {
     if (source.status !== "ready") return
     setLoadingSourceId(source.id)
@@ -411,6 +425,22 @@ export function SourceSidebar({
                 />
               </div>
 
+              {filtered.length > 0 && (() => {
+                const readySources = filtered.filter((s) => s.status === "ready")
+                const allEnabled = readySources.length > 0 && readySources.every((s) => enabledMap[s.id] ?? true)
+                return (
+                  <div className="flex items-center px-2 py-1">
+                    <span className="flex-1 text-xs text-muted-foreground">Alle auswählen</span>
+                    <input
+                      type="checkbox"
+                      checked={allEnabled}
+                      onChange={() => handleToggleAll(readySources)}
+                      className="size-3.5 cursor-pointer accent-primary"
+                    />
+                  </div>
+                )
+              })()}
+
               <ul className="space-y-0.5">
                 {activeUpload && (
                   <li className="flex items-center gap-2 rounded-md bg-muted/50 px-2 py-2">
@@ -473,15 +503,6 @@ export function SourceSidebar({
                       >
                         {source.title}
                       </button>
-                      <input
-                        type="checkbox"
-                        checked={enabledMap[source.id] ?? true}
-                        onChange={() => handleToggleEnabled(source)}
-                        onClick={(e) => e.stopPropagation()}
-                        disabled={source.status !== "ready"}
-                        className="size-3.5 shrink-0 cursor-pointer accent-primary disabled:cursor-default"
-                        title={(enabledMap[source.id] ?? true) ? "Quelle deaktivieren" : "Quelle aktivieren"}
-                      />
                       <DropdownMenu>
                         <DropdownMenuTrigger
                           className="shrink-0 rounded p-0.5 opacity-0 transition-opacity hover:bg-muted-foreground/20 group-hover:opacity-100 focus:opacity-100"
@@ -503,6 +524,15 @@ export function SourceSidebar({
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
+                      <input
+                        type="checkbox"
+                        checked={enabledMap[source.id] ?? true}
+                        onChange={() => handleToggleEnabled(source)}
+                        onClick={(e) => e.stopPropagation()}
+                        disabled={source.status !== "ready"}
+                        className="size-3.5 shrink-0 cursor-pointer accent-primary disabled:cursor-default"
+                        title={(enabledMap[source.id] ?? true) ? "Quelle deaktivieren" : "Quelle aktivieren"}
+                      />
                     </li>
                   ))
                 )}
