@@ -167,9 +167,8 @@ export function StudioSidebar({
     if (activeNote) scheduleSave(editTitle, value, activeNote.id)
   }
 
-  async function handleSetAsSource() {
-    if (!activeNote) return
-    const text = [editTitle, editContent].filter(Boolean).join("\n\n").trim()
+  async function setNoteAsSource(title: string, content: string) {
+    const text = [title, content].filter(Boolean).join("\n\n").trim()
     if (!text) return
 
     const hashBuffer = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text))
@@ -186,7 +185,6 @@ export function StudioSidebar({
       }
     }
 
-    setIsSettingSource(true)
     try {
       const res = await fetch("/api/sources", {
         method: "POST",
@@ -194,7 +192,7 @@ export function StudioSidebar({
         body: JSON.stringify({
           notebookId,
           type: "text",
-          title: editTitle || t("defaultTitle"),
+          title: title || t("defaultTitle"),
           text,
           fileHash: hash,
         }),
@@ -204,8 +202,14 @@ export function StudioSidebar({
       window.location.reload()
     } catch {
       toast.error(t("setAsSourceError"))
-      setIsSettingSource(false)
     }
+  }
+
+  async function handleSetAsSource() {
+    if (!activeNote) return
+    setIsSettingSource(true)
+    await setNoteAsSource(editTitle, editContent)
+    setIsSettingSource(false)
   }
 
   async function handleSetAllAsSource() {
@@ -437,7 +441,7 @@ export function StudioSidebar({
                             <MoreHorizontal className="size-4 text-muted-foreground" />
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => devTodo("setAsSource")}>{t("setAsSource")}</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => item.note && setNoteAsSource(item.note.title, item.note.content)} disabled={!item.note}>{t("setAsSource")}</DropdownMenuItem>
                             <DropdownMenuItem onClick={handleSetAllAsSource}>{t("setAllAsSource")}</DropdownMenuItem>
                             <DropdownMenuItem onClick={() => item.note && handleExportToDocs(item.note)} disabled={!item.note}>{t("exportToDocs")}</DropdownMenuItem>
                             <DropdownMenuItem onClick={() => item.note && handleExportToSheets(item.note)} disabled={!item.note}>{t("exportToSheets")}</DropdownMenuItem>
