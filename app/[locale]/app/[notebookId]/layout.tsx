@@ -5,7 +5,7 @@ import { notebooks, sources, notes, studioOutputs } from "@/db/schema"
 import { and, eq, desc } from "drizzle-orm"
 import { NotebookHeader } from "@/components/notebook/notebook-header"
 import { SourceSidebar } from "@/components/notebook/source-sidebar"
-import { StudioSidebar } from "@/components/notebook/studio-sidebar"
+import { NotebookShell } from "@/components/notebook/notebook-shell"
 
 export default async function NotebookLayout({
   children,
@@ -37,8 +37,9 @@ export default async function NotebookLayout({
       <NotebookHeader notebookName={notebook.name} />
       <div className="flex flex-1 overflow-hidden">
         <SourceSidebar notebookId={notebookId} initialSources={notebookSources} />
-        <main className="flex flex-1 overflow-hidden">{children}</main>
-        <StudioSidebar notebookId={notebookId} initialNotes={initialNotes} initialStudioOutputs={initialStudioOutputs} />
+        <NotebookShell notebookId={notebookId} initialNotes={initialNotes} initialStudioOutputs={initialStudioOutputs}>
+          {children}
+        </NotebookShell>
       </div>
     </div>
   )

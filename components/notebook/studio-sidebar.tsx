@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect } from "react"
 import { useTranslations } from "next-intl"
 import {
   PanelRightClose,
@@ -28,6 +28,7 @@ import {
 import { cn } from "@/lib/utils"
 import { devTodo } from "@/lib/dev-todo"
 import { createNote, updateNote, deleteNote } from "@/lib/actions/notes"
+import { NoteEditor } from "./note-editor"
 import { toast } from "sonner"
 import type { Note, StudioOutput } from "@/db/schema"
 
@@ -58,7 +59,7 @@ function outputIcon(kind: OutputKind) {
     case "slidedeck": return <FaSlideshare className="size-4 shrink-0 text-muted-foreground" />
     case "datatable": return <FaTable className="size-4 shrink-0 text-muted-foreground" />
     case "quiz":      return <FaQuestionCircle className="size-4 shrink-0 text-muted-foreground" />
-    default:          return <StickyNote className="size-4 shrink-0 text-muted-foreground" />
+    default:          return <StickyNote className="size-4 shrink-0 text-blue-400" />
   }
 }
 
@@ -71,32 +72,25 @@ function relativeTime(date: Date): string {
 }
 
 function noteToOutputItem(note: Note): OutputItem {
-  return {
-    id: note.id,
-    kind: "note",
-    title: note.content.trim(),
-    createdAt: note.createdAt,
-    note,
-  }
+  return { id: note.id, kind: "note", title: note.content.trim(), createdAt: note.createdAt, note }
 }
 
 function studioOutputToItem(o: StudioOutput, tStudio: (k: string) => string): OutputItem {
-  return {
-    id: o.id,
-    kind: o.type,
-    title: tStudio(o.type),
-    createdAt: o.createdAt,
-  }
+  return { id: o.id, kind: o.type, title: tStudio(o.type), createdAt: o.createdAt }
 }
 
 export function StudioSidebar({
   notebookId,
   initialNotes,
   initialStudioOutputs,
+  noteMode,
+  onNoteModeChange,
 }: {
   notebookId: string
   initialNotes: Note[]
   initialStudioOutputs: StudioOutput[]
+  noteMode: boolean
+  onNoteModeChange: (active: boolean) => void
 }) {
   const t = useTranslations("notes")
   const tStudio = useTranslations("studio")
@@ -105,7 +99,6 @@ export function StudioSidebar({
   const [activeNote, setActiveNote] = useState<Note | null>(null)
   const [editContent, setEditContent] = useState("")
   const [isSaving, setIsSaving] = useState(false)
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const outputs: OutputItem[] = [
     ...notesList.map(noteToOutputItem),
@@ -125,10 +118,6 @@ export function StudioSidebar({
     return () => window.removeEventListener(NOTE_FROM_CHAT_EVENT, onSaveAsNote)
   }, [notebookId, collapsed, t])
 
-  useEffect(() => {
-    if (activeNote) setTimeout(() => textareaRef.current?.focus(), 50)
-  }, [activeNote?.id]) // eslint-disable-line react-hooks/exhaustive-deps
-
   async function handleNewNote() {
     const note = await createNote(notebookId, "")
     if (!note) return
@@ -140,6 +129,12 @@ export function StudioSidebar({
     setActiveNote(note)
     setEditContent(note.content)
     setCollapsed(false)
+    onNoteModeChange(true)
+  }
+
+  function closeNoteDetail() {
+    setActiveNote(null)
+    onNoteModeChange(false)
   }
 
   function handleOutputClick(item: OutputItem) {
@@ -162,7 +157,7 @@ export function StudioSidebar({
 
   async function handleDeleteNote(noteId: string) {
     setNotesList((prev) => prev.filter((n) => n.id !== noteId))
-    if (activeNote?.id === noteId) setActiveNote(null)
+    if (activeNote?.id === noteId) closeNoteDetail()
     await deleteNote(noteId, notebookId)
     toast.success(t("deleteSuccess"))
   }
@@ -171,9 +166,10 @@ export function StudioSidebar({
     <aside
       className={cn(
         "flex shrink-0 flex-col border-l bg-background transition-all duration-200",
-        collapsed ? "w-12" : "w-96"
+        collapsed ? "w-12" : noteMode ? "flex-1" : "w-96"
       )}
     >
+      {/* Header */}
       <div className="flex h-12 items-center justify-between border-b px-3">
         {!collapsed && (
           <span className="text-sm font-medium">
@@ -186,7 +182,10 @@ export function StudioSidebar({
           className={cn("size-7 shrink-0", collapsed && "mx-auto")}
           onClick={() => {
             if (collapsed) setCollapsed(false)
-            else { setCollapsed(true); setActiveNote(null) }
+            else {
+              setCollapsed(true)
+              if (activeNote) closeNoteDetail()
+            }
           }}
         >
           {collapsed ? <PanelRightOpen className="size-4" /> : <PanelRightClose className="size-4" />}
@@ -197,25 +196,33 @@ export function StudioSidebar({
         activeNote ? (
           /* ── Note detail view ── */
           <div className="flex flex-1 flex-col overflow-hidden">
+            {/* Sub-header: back + "Aus Chat" badge */}
             <div className="flex h-10 shrink-0 items-center gap-1 border-b px-2">
-              <Button variant="ghost" size="icon" className="size-7 shrink-0" onClick={() => setActiveNote(null)}>
+              <Button variant="ghost" size="icon" className="size-7 shrink-0" onClick={closeNoteDetail}>
                 <ChevronLeft className="size-4" />
               </Button>
+              <span className="text-xs text-muted-foreground">{t("newNote")}</span>
               {activeNote.sourceMessageId && (
-                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                <span className="ml-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
                   {t("fromChat")}
                 </span>
               )}
             </div>
-            <textarea
-              ref={textareaRef}
-              value={editContent}
-              onChange={(e) => setEditContent(e.target.value)}
+
+            {/* TipTap editor */}
+            <NoteEditor
+              key={activeNote.id}
+              initialContent={editContent}
               placeholder={t("placeholder")}
-              className="flex-1 resize-none bg-transparent p-4 text-sm outline-none placeholder:text-muted-foreground"
+              onChange={setEditContent}
             />
-            <div className="shrink-0 border-t p-3">
-              <Button size="sm" className="w-full" onClick={handleSaveNote} disabled={isSaving}>
+
+            {/* Footer */}
+            <div className="flex shrink-0 items-center justify-between border-t p-3">
+              <Button variant="outline" size="sm" onClick={() => devTodo("setAsSource")}>
+                {t("setAsSource")}
+              </Button>
+              <Button size="sm" onClick={handleSaveNote} disabled={isSaving}>
                 {t("save")}
               </Button>
             </div>
@@ -264,10 +271,7 @@ export function StudioSidebar({
                     {outputs.map((item) => (
                       <li key={item.id} className="group flex items-center gap-2 rounded-md px-2 py-2 hover:bg-muted">
                         {outputIcon(item.kind)}
-                        <button
-                          className="min-w-0 flex-1 text-left"
-                          onClick={() => handleOutputClick(item)}
-                        >
+                        <button className="min-w-0 flex-1 text-left" onClick={() => handleOutputClick(item)}>
                           <p className="truncate text-sm">
                             {item.title || <span className="italic text-muted-foreground">{t("placeholder")}</span>}
                           </p>
@@ -278,18 +282,10 @@ export function StudioSidebar({
                             <MoreHorizontal className="size-4 text-muted-foreground" />
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => devTodo("setAsSource")}>
-                              {t("setAsSource")}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => devTodo("setAllAsSource")}>
-                              {t("setAllAsSource")}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => devTodo("exportToDocs")}>
-                              {t("exportToDocs")}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => devTodo("exportToSheets")}>
-                              {t("exportToSheets")}
-                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => devTodo("setAsSource")}>{t("setAsSource")}</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => devTodo("setAllAsSource")}>{t("setAllAsSource")}</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => devTodo("exportToDocs")}>{t("exportToDocs")}</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => devTodo("exportToSheets")}>{t("exportToSheets")}</DropdownMenuItem>
                             {item.kind === "note" && (
                               <DropdownMenuItem
                                 className="text-destructive focus:text-destructive"
