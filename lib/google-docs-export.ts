@@ -34,11 +34,11 @@ function loadGis(): Promise<void> {
   })
 }
 
-function getAccessToken(clientId: string): Promise<string> {
+function getAccessToken(clientId: string, scope: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const client = window.google!.accounts.oauth2.initTokenClient({
       client_id: clientId,
-      scope: DRIVE_SCOPE,
+      scope,
       callback(response) {
         if (response.access_token) resolve(response.access_token)
         else reject(new Error(response.error ?? "OAuth failed"))
@@ -84,12 +84,87 @@ async function createGoogleDoc(accessToken: string, title: string, html: string)
   return `https://docs.google.com/document/d/${id}/edit`
 }
 
+const SHEETS_SCOPE = "https://www.googleapis.com/auth/spreadsheets"
+
+function parseMarkdownTables(markdown: string): string[][][] {
+  const lines = markdown.split("\n")
+  const tables: string[][][] = []
+  let i = 0
+
+  const parseRow = (line: string) =>
+    line.split("|").slice(1, -1).map((c) => c.trim())
+
+  while (i < lines.length) {
+    const line = lines[i].trim()
+    if (line.startsWith("|") && i + 1 < lines.length) {
+      const sep = lines[i + 1].trim()
+      if (/^\|[\s\-:| ]+\|$/.test(sep)) {
+        const table: string[][] = [parseRow(line)]
+        i += 2
+        while (i < lines.length && lines[i].trim().startsWith("|")) {
+          table.push(parseRow(lines[i].trim()))
+          i++
+        }
+        tables.push(table)
+        continue
+      }
+    }
+    i++
+  }
+
+  return tables
+}
+
+export function extractTablesFromMarkdown(markdown: string): string[][][] {
+  return parseMarkdownTables(markdown)
+}
+
+export async function exportNoteToGoogleSheets(title: string, markdownContent: string): Promise<string> {
+  const tables = parseMarkdownTables(markdownContent)
+  if (tables.length === 0) throw new Error("NO_TABLES")
+
+  const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
+  if (!clientId) throw new Error("NEXT_PUBLIC_GOOGLE_CLIENT_ID not set")
+
+  await loadGis()
+  const accessToken = await getAccessToken(clientId, SHEETS_SCOPE)
+
+  const res = await fetch("https://sheets.googleapis.com/v4/spreadsheets", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      properties: { title },
+      sheets: tables.map((table, i) => ({
+        properties: { title: tables.length > 1 ? `Tabelle ${i + 1}` : "Tabelle" },
+        data: [{
+          startRow: 0,
+          startColumn: 0,
+          rowData: table.map((row) => ({
+            values: row.map((cell) => ({ userEnteredValue: { stringValue: cell } })),
+          })),
+        }],
+      })),
+    }),
+  })
+
+  if (!res.ok) {
+    const err = (await res.json()) as { error?: { message?: string } }
+    throw new Error(err.error?.message ?? "Sheets API error")
+  }
+
+  const { spreadsheetId } = (await res.json()) as { spreadsheetId: string }
+  return `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`
+}
+
 export async function exportNoteToGoogleDocs(title: string, markdownContent: string): Promise<string> {
   const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
   if (!clientId) throw new Error("NEXT_PUBLIC_GOOGLE_CLIENT_ID not set")
 
   await loadGis()
-  const accessToken = await getAccessToken(clientId)
+  const accessToken = await getAccessToken(clientId, DRIVE_SCOPE)
 
   const html = await marked(markdownContent, { gfm: true })
   const fullHtml = `<html><head><meta charset="UTF-8"><title>${title}</title></head><body>${html}</body></html>`

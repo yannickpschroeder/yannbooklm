@@ -29,7 +29,7 @@ import {
 import { cn } from "@/lib/utils"
 import { devTodo } from "@/lib/dev-todo"
 import { createNote, updateNote, deleteNote } from "@/lib/actions/notes"
-import { exportNoteToGoogleDocs } from "@/lib/google-docs-export"
+import { exportNoteToGoogleDocs, exportNoteToGoogleSheets } from "@/lib/google-docs-export"
 import { NoteEditor } from "./note-editor"
 import { toast } from "sonner"
 import type { Note, StudioOutput } from "@/db/schema"
@@ -256,6 +256,18 @@ export function StudioSidebar({
     }
   }
 
+  async function handleExportToSheets(note: Note) {
+    try {
+      const url = await exportNoteToGoogleSheets(note.title, note.content)
+      window.open(url, "_blank", "noopener,noreferrer")
+    } catch (err) {
+      if (err instanceof Error) {
+        if (err.message === "NO_TABLES") toast.warning(t("exportToSheetsNoTables"))
+        else if (err.message !== "OAuth failed") toast.error(err.message)
+      }
+    }
+  }
+
   async function handleExportToDocs(note: Note) {
     try {
       const url = await exportNoteToGoogleDocs(note.title, note.content)
@@ -428,7 +440,7 @@ export function StudioSidebar({
                             <DropdownMenuItem onClick={() => devTodo("setAsSource")}>{t("setAsSource")}</DropdownMenuItem>
                             <DropdownMenuItem onClick={handleSetAllAsSource}>{t("setAllAsSource")}</DropdownMenuItem>
                             <DropdownMenuItem onClick={() => item.note && handleExportToDocs(item.note)} disabled={!item.note}>{t("exportToDocs")}</DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => devTodo("exportToSheets")}>{t("exportToSheets")}</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => item.note && handleExportToSheets(item.note)} disabled={!item.note}>{t("exportToSheets")}</DropdownMenuItem>
                             {item.kind === "note" && (
                               <DropdownMenuItem
                                 className="text-destructive focus:text-destructive"
