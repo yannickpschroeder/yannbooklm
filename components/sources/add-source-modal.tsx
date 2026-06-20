@@ -22,7 +22,9 @@ import { devTodo } from "@/lib/dev-todo"
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024
 
-type View = "pick" | "pdf-uploading" | "url-input" | "url-processing" | "text-input"
+type View = "pick" | "pdf-uploading" | "url-input" | "url-processing" | "text-input" | "text-processing"
+
+const TEXT_MAX_CHARS = 10_000
 
 async function pollStatus(
   sourceId: string,
@@ -120,9 +122,9 @@ export function AddSourceModal({
 
   const isUploading = view === "pdf-uploading" && progress < 100
   const isEmbedding =
-    (view === "pdf-uploading" && progress >= 100) || view === "url-processing"
+    (view === "pdf-uploading" && progress >= 100) || view === "url-processing" || view === "text-processing"
   const isProcessing = isUploading || isEmbedding
-  const canMinimize = isEmbedding && sourceCreated
+  const canMinimize = view !== "text-processing" && isEmbedding && sourceCreated
 
   async function handleCancel() {
     minimizingRef.current = false
@@ -314,12 +316,66 @@ export function AddSourceModal({
     }
   }
 
+  // ── Text ─────────────────────────────────────────────────────────────────────
+
+  async function handleTextSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    const trimmed = pastedText.trim()
+    if (!trimmed || trimmed.length > TEXT_MAX_CHARS) return
+
+    const firstLine = trimmed.split("\n")[0].trim()
+    const title = firstLine.length > 60 ? firstLine.slice(0, 60) : firstLine
+
+    const ac = new AbortController()
+    abortControllerRef.current = ac
+    currentTitleRef.current = title
+
+    setView("text-processing")
+    setEmbedProgress(0)
+
+    try {
+      const res = await fetch("/api/sources", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notebookId, type: "text", title, text: trimmed }),
+        signal: ac.signal,
+      })
+      if (!res.ok) {
+        const { error } = (await res.json()) as { error?: string }
+        throw new Error(error ?? "Unbekannter Fehler")
+      }
+      const { sourceId } = (await res.json()) as { sourceId: string }
+      currentSourceIdRef.current = sourceId
+      setSourceCreated(true)
+
+      await pollStatus(sourceId, setEmbedProgress, ac.signal)
+      toast.success("Text wurde hinzugefügt")
+      reset()
+      onOpenChange(false)
+      window.location.reload()
+    } catch (err) {
+      const isAbort = err instanceof DOMException && err.name === "AbortError"
+      if (isAbort) {
+        if (currentSourceIdRef.current) {
+          await deleteSource(currentSourceIdRef.current, notebookId).catch(() => undefined)
+        }
+        reset()
+        setView("text-input")
+        return
+      }
+      console.error(err)
+      toast.error(err instanceof Error ? err.message : "Fehler beim Hinzufügen")
+      reset()
+      setView("text-input")
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={isProcessing ? undefined : (o) => { if (!o) reset(); onOpenChange(o) }}>
       <DialogContent className="sm:max-w-3xl p-6" showCloseButton={false}>
         <DialogHeader className="flex-row items-start justify-between">
           <DialogTitle className="text-xl font-semibold leading-snug">
-            {view === "text-input" ? (
+            {view === "text-input" || view === "text-processing" ? (
               t("pastedTextTitle")
             ) : view === "url-input" || view === "url-processing" ? (
               "Webseite hinzufügen"
@@ -537,7 +593,7 @@ export function AddSourceModal({
 
         {/* ── Pasted text input ────────────────────────────────────────────── */}
         {view === "text-input" && (
-          <div className="space-y-4">
+          <form onSubmit={handleTextSubmit} className="space-y-4">
             <button
               type="button"
               onClick={() => setView("pick")}
@@ -547,20 +603,66 @@ export function AddSourceModal({
               Zurück
             </button>
             <p className="text-sm text-muted-foreground">{t("pastedTextDescription")}</p>
-            <textarea
-              value={pastedText}
-              onChange={(e) => setPastedText(e.target.value)}
-              placeholder={t("pastedTextPlaceholder")}
-              autoFocus
-              className="min-h-48 w-full resize-y rounded-md border bg-transparent p-3 text-sm outline-none placeholder:text-muted-foreground focus:ring-1 focus:ring-ring"
-            />
+            <div className="space-y-1">
+              <textarea
+                value={pastedText}
+                onChange={(e) => setPastedText(e.target.value)}
+                placeholder={t("pastedTextPlaceholder")}
+                autoFocus
+                className="min-h-48 w-full resize-y rounded-md border bg-transparent p-3 text-sm outline-none placeholder:text-muted-foreground focus:ring-1 focus:ring-ring"
+              />
+              <div className="flex items-center justify-between">
+                {pastedText.length > TEXT_MAX_CHARS ? (
+                  <span className="text-xs text-destructive">{t("pastedTextTooLong")}</span>
+                ) : (
+                  <span />
+                )}
+                <span className={`text-xs ${pastedText.length > TEXT_MAX_CHARS ? "text-destructive" : "text-muted-foreground"}`}>
+                  {pastedText.length.toLocaleString()} / {TEXT_MAX_CHARS.toLocaleString()}
+                </span>
+              </div>
+            </div>
             <div className="flex justify-end">
-              <Button
-                onClick={() => devTodo("Kopierter Text einfügen")}
-                disabled={!pastedText.trim()}
-              >
+              <Button type="submit" disabled={!pastedText.trim() || pastedText.length > TEXT_MAX_CHARS}>
                 {t("insert")}
               </Button>
+            </div>
+          </form>
+        )}
+
+        {/* ── Text processing ───────────────────────────────────────────────── */}
+        {view === "text-processing" && (
+          <div className="flex flex-col items-center gap-4 py-6">
+            <Loader2 className="size-10 animate-spin text-primary" />
+            <div className="w-full space-y-2 text-center">
+              <div className="flex items-center justify-between text-sm">
+                <span className="font-medium">
+                  {embedProgress > 0 ? "Einlesen & Indizieren…" : "Text wird verarbeitet…"}
+                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground">
+                    {embedProgress > 0 ? `${embedProgress}%` : ""}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleCancel}
+                    className="rounded p-0.5 text-muted-foreground hover:text-foreground"
+                    title="Abbrechen"
+                  >
+                    <X className="size-4" />
+                  </button>
+                </div>
+              </div>
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                {embedProgress > 0 ? (
+                  <div
+                    className="h-full bg-primary transition-all duration-500"
+                    style={{ width: `${embedProgress}%` }}
+                  />
+                ) : (
+                  <div className="h-full w-full animate-pulse bg-primary" />
+                )}
+              </div>
             </div>
           </div>
         )}

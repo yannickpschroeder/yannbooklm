@@ -30,6 +30,7 @@
     "pastedTextTitle": "Kopierten Text einfügen",
     "pastedTextDescription": "Fügen Sie unten den kopierten Text ein, um ihn als Quelle in YannBookLM hochzuladen.",
     "pastedTextPlaceholder": "Text hier einfügen",
+    "pastedTextTooLong": "Text zu lang (max. 10.000 Zeichen)",
     "insert": "Einfügen",
     "selectAll": "Alle auswählen",
     "enableSource": "Quelle aktivieren",

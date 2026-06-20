@@ -4,14 +4,15 @@ import { after } from "next/server"
 import { db } from "@/db"
 import { sources, notebooks } from "@/db/schema"
 import { and, eq } from "drizzle-orm"
-import { ingestPdf, ingestUrl, ingestYoutube } from "@/lib/ingestion/pipeline"
+import { ingestPdf, ingestUrl, ingestYoutube, ingestText } from "@/lib/ingestion/pipeline"
 import { extractVideoId } from "@/lib/ingestion/youtube"
 
 export const maxDuration = 10
 
 type PdfPayload = { notebookId: string; type: "pdf"; title: string; s3Key: string; fileHash?: string }
 type UrlPayload = { notebookId: string; type: "url"; url: string }
-type Payload = PdfPayload | UrlPayload
+type TextPayload = { notebookId: string; type: "text"; title: string; text: string }
+type Payload = PdfPayload | UrlPayload | TextPayload
 
 export async function POST(req: Request) {
   const session = await auth()
@@ -52,6 +53,23 @@ export async function POST(req: Request) {
       } else {
         await ingestUrl(source.id, body.url)
       }
+    })
+
+    return NextResponse.json({ sourceId: source.id }, { status: 202 })
+  }
+
+  if (body.type === "text") {
+    if (!body.text?.trim()) return NextResponse.json({ error: "Text is empty" }, { status: 400 })
+    if (body.text.length > 10_000) return NextResponse.json({ error: "Text too long (max 10 000 chars)" }, { status: 400 })
+
+    const [source] = await db
+      .insert(sources)
+      .values({ notebookId: body.notebookId, type: "text", title: body.title, status: "pending" })
+      .returning()
+
+    const capturedText = body.text
+    after(async () => {
+      await ingestText(source.id, capturedText)
     })
 
     return NextResponse.json({ sourceId: source.id }, { status: 202 })

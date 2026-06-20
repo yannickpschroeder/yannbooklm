@@ -92,6 +92,22 @@ export async function ingestYoutube(sourceId: string, url: string): Promise<void
   }
 }
 
+export async function ingestText(sourceId: string, text: string): Promise<void> {
+  try {
+    await db.update(sources).set({ status: "processing" }).where(eq(sources.id, sourceId))
+    const pages: PdfPage[] = [{ pageNumber: 1, content: text }]
+    await ingestPages(sourceId, pages)
+    const meta = await generateSourceMeta(pages).catch((err) => {
+      console.warn(`[ingest] Summary generation failed for ${sourceId}:`, err)
+      return { summary: null, topics: [] }
+    })
+    await db.update(sources).set({ status: "ready", summary: meta.summary, suggestedTopics: meta.topics }).where(eq(sources.id, sourceId))
+  } catch (err) {
+    console.error(`[ingest] Text ingestion failed for source ${sourceId}:`, err)
+    await db.delete(sources).where(eq(sources.id, sourceId))
+  }
+}
+
 export async function ingestPdf(sourceId: string, s3Key: string): Promise<void> {
   try {
     await db.update(sources).set({ status: "processing" }).where(eq(sources.id, sourceId))
