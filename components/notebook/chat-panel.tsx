@@ -408,6 +408,7 @@ export function ChatPanel({
 }) {
   const [input, setInput] = useState("")
   const [activeCitation, setActiveCitation] = useState<CitationChunk | null>(null)
+  const [activeSourceCount, setActiveSourceCount] = useState(readySourceCount)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   const { messages, sendMessage, status } = useChat<ChatMessage>({
@@ -425,21 +426,29 @@ export function ChatPanel({
   }, [messages])
 
   useEffect(() => {
+    function onCountChange(e: Event) {
+      setActiveSourceCount((e as CustomEvent<{ count: number }>).detail.count)
+    }
+    window.addEventListener("notebook:source-count-change", onCountChange)
+    return () => window.removeEventListener("notebook:source-count-change", onCountChange)
+  }, [])
+
+  useEffect(() => {
     function onAsk(e: Event) {
       const text = (e as CustomEvent<{ text: string }>).detail?.text?.trim()
-      if (!text || isStreaming || readySourceCount === 0) return
+      if (!text || isStreaming || activeSourceCount === 0) return
       setInput("")
       setActiveCitation(null)
       sendMessage({ text })
     }
     window.addEventListener("notebook:ask", onAsk)
     return () => window.removeEventListener("notebook:ask", onAsk)
-  }, [isStreaming, readySourceCount, sendMessage])
+  }, [isStreaming, activeSourceCount, sendMessage])
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     const text = input.trim()
-    if (!text || isStreaming || readySourceCount === 0) return
+    if (!text || isStreaming || activeSourceCount === 0) return
     setInput("")
     setActiveCitation(null)
     sendMessage({ text })
@@ -459,7 +468,7 @@ export function ChatPanel({
           {messages.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
               <p className="text-muted-foreground text-sm">
-                {readySourceCount === 0
+                {activeSourceCount === 0
                   ? "Füge Quellen hinzu um den Chat zu starten"
                   : "Stelle eine Frage zu deinen Quellen"}
               </p>
@@ -523,19 +532,19 @@ export function ChatPanel({
               <input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder={readySourceCount === 0 ? "Keine Quellen verfügbar..." : "Text eingeben..."}
-                disabled={readySourceCount === 0 || isStreaming}
+                placeholder={activeSourceCount === 0 ? "Keine Quellen verfügbar..." : "Text eingeben..."}
+                disabled={activeSourceCount === 0 || isStreaming}
                 className="placeholder:text-muted-foreground flex-1 bg-transparent text-sm outline-none disabled:cursor-not-allowed disabled:opacity-50"
               />
               <div className="flex items-center gap-2">
                 <span className="text-muted-foreground text-xs">
-                  {readySourceCount} {readySourceCount === 1 ? "Quelle" : "Quellen"}
+                  {activeSourceCount} {activeSourceCount === 1 ? "Quelle" : "Quellen"}
                 </span>
                 <Button
                   type="submit"
                   size="icon"
                   className="size-7 rounded-full"
-                  disabled={!input.trim() || readySourceCount === 0 || isStreaming}
+                  disabled={!input.trim() || activeSourceCount === 0 || isStreaming}
                 >
                   {isStreaming ? (
                     <Loader2 className="size-4 animate-spin" />

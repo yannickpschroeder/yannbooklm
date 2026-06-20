@@ -29,12 +29,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { AddSourceModal } from "@/components/sources/add-source-modal"
 import { FaYoutube } from "react-icons/fa"
 import Markdown from "react-markdown"
@@ -55,7 +50,7 @@ type ActiveUpload = {
 
 function SourceTypeIcon({ type, status }: { type: Source["type"]; status: Source["status"] }) {
   if (status === "processing" || status === "pending") {
-    return <Loader2 className="size-4 shrink-0 animate-spin text-muted-foreground" />
+    return <Loader2 className="text-muted-foreground size-4 shrink-0 animate-spin" />
   }
   if (type === "youtube") return <FaYoutube className="size-4 shrink-0 text-red-500" />
   if (type === "url") return <Globe className="size-4 shrink-0 text-blue-400" />
@@ -74,27 +69,28 @@ function buildSourceLink(chunk: CitationChunk) {
     if (id) {
       const m = Math.floor(chunk.positionStart / 60)
       const s = String(chunk.positionStart % 60).padStart(2, "0")
-      return { href: `https://www.youtube.com/watch?v=${id}&t=${chunk.positionStart}`, label: `${m}:${s}` }
+      return {
+        href: `https://www.youtube.com/watch?v=${id}&t=${chunk.positionStart}`,
+        label: `${m}:${s}`,
+      }
     }
   }
   if (chunk.sourceType === "pdf" && chunk.pageNumber != null) {
     return { href: null, label: `Seite ${chunk.pageNumber}` }
   }
   if (chunk.url) {
-    try { return { href: chunk.url, label: new URL(chunk.url).hostname } } catch { /* noop */ }
+    try {
+      return { href: chunk.url, label: new URL(chunk.url).hostname }
+    } catch {
+      /* noop */
+    }
   }
   return null
 }
 
 // ─── Source detail panel ───────────────────────────────────────────────────────
 
-function SourceDetailPanel({
-  chunk,
-  onClose,
-}: {
-  chunk: CitationChunk
-  onClose: () => void
-}) {
+function SourceDetailPanel({ chunk, onClose }: { chunk: CitationChunk; onClose: () => void }) {
   const link = buildSourceLink(chunk)
   const [summaryOpen, setSummaryOpen] = useState(false)
 
@@ -102,7 +98,13 @@ function SourceDetailPanel({
     <div className="flex h-full flex-col overflow-hidden">
       {/* Header */}
       <div className="flex h-12 shrink-0 items-center gap-2 border-b px-3">
-        <Button variant="ghost" size="icon" className="size-7 shrink-0" onClick={onClose} title="Zurück zu Quellen">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-7 shrink-0"
+          onClick={onClose}
+          title="Zurück zu Quellen"
+        >
           <ChevronLeft className="size-4" />
         </Button>
         <CitationSourceIcon type={chunk.sourceType} />
@@ -115,7 +117,7 @@ function SourceDetailPanel({
 
       {/* Quellenübersicht — card dropdown, fixed above scrollable content */}
       {chunk.sourceSummary && (
-        <div className="shrink-0 px-3 py-2">
+        <div className="my-2 shrink-0 px-3 py-2">
           <div className="overflow-hidden rounded-lg bg-violet-500/10 ring-1 ring-violet-500/20">
             <button
               onClick={() => setSummaryOpen((p) => !p)}
@@ -130,7 +132,7 @@ function SourceDetailPanel({
               )}
             </button>
             {summaryOpen && (
-              <div className="max-h-64 overflow-y-auto border-t border-violet-500/20 p-5 text-sm leading-relaxed text-foreground">
+              <div className="text-foreground max-h-64 overflow-y-auto border-t border-violet-500/20 p-5 text-sm leading-relaxed">
                 <Markdown remarkPlugins={[remarkGfm]}>{chunk.sourceSummary}</Markdown>
                 {chunk.sourceTopics && chunk.sourceTopics.length > 0 && (
                   <div className="mt-3 flex flex-wrap gap-1.5">
@@ -138,7 +140,9 @@ function SourceDetailPanel({
                       <button
                         key={topic}
                         onClick={() =>
-                          window.dispatchEvent(new CustomEvent("notebook:ask", { detail: { text: topic } }))
+                          window.dispatchEvent(
+                            new CustomEvent("notebook:ask", { detail: { text: topic } })
+                          )
                         }
                         className="rounded-full border border-violet-500/30 bg-violet-500/15 px-2.5 py-0.5 text-xs text-violet-300 hover:bg-violet-500/25"
                       >
@@ -154,28 +158,45 @@ function SourceDetailPanel({
       )}
 
       {/* Content — scrollable, Markdown */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 text-sm leading-relaxed text-foreground">
+      <div className="text-foreground flex-1 overflow-y-auto px-4 py-4 text-sm leading-relaxed">
         <Markdown
           remarkPlugins={[remarkGfm]}
           components={{
             p(props) {
               const { node: _node, children, ...rest } = props
-              return <p className="mb-3 last:mb-0" {...rest}>{children}</p>
+              return (
+                <p className="mb-3 last:mb-0" {...rest}>
+                  {children}
+                </p>
+              )
             },
             img(props) {
               const { node: _node, src, alt, ...rest } = props
               return (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={typeof src === "string" ? src : undefined} alt={alt ?? ""} className="my-3 w-full rounded-md object-cover" {...rest} />
+                <img
+                  src={typeof src === "string" ? src : undefined}
+                  alt={alt ?? ""}
+                  className="my-3 w-full rounded-md object-cover"
+                  {...rest}
+                />
               )
             },
             ul(props) {
               const { node: _node, children, ...rest } = props
-              return <ul className="mb-3 list-disc space-y-1 pl-4 last:mb-0" {...rest}>{children}</ul>
+              return (
+                <ul className="mb-3 list-disc space-y-1 pl-4 last:mb-0" {...rest}>
+                  {children}
+                </ul>
+              )
             },
             ol(props) {
               const { node: _node, children, ...rest } = props
-              return <ol className="mb-3 list-decimal space-y-1 pl-4 last:mb-0" {...rest}>{children}</ol>
+              return (
+                <ol className="mb-3 list-decimal space-y-1 pl-4 last:mb-0" {...rest}>
+                  {children}
+                </ol>
+              )
             },
             li(props) {
               const { node: _node, children, ...rest } = props
@@ -183,7 +204,11 @@ function SourceDetailPanel({
             },
             strong(props) {
               const { node: _node, children, ...rest } = props
-              return <strong className="font-semibold" {...rest}>{children}</strong>
+              return (
+                <strong className="font-semibold" {...rest}>
+                  {children}
+                </strong>
+              )
             },
           }}
         >
@@ -200,13 +225,13 @@ function SourceDetailPanel({
             href={link.href}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1.5 text-xs text-primary hover:underline"
+            className="text-primary flex items-center gap-1.5 text-xs hover:underline"
           >
             <ExternalLink className="size-3" />
             Quelle anzeigen
           </a>
         ) : link ? (
-          <span className="text-xs text-muted-foreground">{link.label}</span>
+          <span className="text-muted-foreground text-xs">{link.label}</span>
         ) : null}
       </div>
     </div>
@@ -231,8 +256,8 @@ export function SourceSidebar({
   const t = useTranslations("sources")
   const [activeChunk, setActiveChunk] = useState<CitationChunk | null>(null)
   const [loadingSourceId, setLoadingSourceId] = useState<string | null>(null)
-  const [enabledMap, setEnabledMap] = useState<Record<string, boolean>>(
-    () => Object.fromEntries(initialSources.map((s) => [s.id, s.enabled]))
+  const [enabledMap, setEnabledMap] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(initialSources.map((s) => [s.id, s.enabled]))
   )
 
   const processingSource = initialSources.find(
@@ -240,7 +265,11 @@ export function SourceSidebar({
   )
   const [activeUpload, setActiveUpload] = useState<ActiveUpload | null>(
     processingSource
-      ? { sourceId: processingSource.id, title: processingSource.title, embedPct: processingSource.embedProgress }
+      ? {
+          sourceId: processingSource.id,
+          title: processingSource.title,
+          embedPct: processingSource.embedProgress,
+        }
       : null
   )
 
@@ -271,28 +300,46 @@ export function SourceSidebar({
         try {
           const res = await fetch(`/api/sources/${activeSourceIdRef.current}/status`)
           if (res.status === 404 || !res.ok) {
-            if (!cancelled) { setActiveUpload(null); toast.error("Verarbeitung fehlgeschlagen") }
+            if (!cancelled) {
+              setActiveUpload(null)
+              toast.error("Verarbeitung fehlgeschlagen")
+            }
             return
           }
-          const { status, embedProgress } = (await res.json()) as { status: string; embedProgress: number }
-          if (!cancelled) setActiveUpload((prev) => prev ? { ...prev, embedPct: embedProgress } : null)
+          const { status, embedProgress } = (await res.json()) as {
+            status: string
+            embedProgress: number
+          }
+          if (!cancelled)
+            setActiveUpload((prev) => (prev ? { ...prev, embedPct: embedProgress } : null))
           if (status === "ready") {
-            if (!cancelled) { setActiveUpload(null); window.location.reload() }
+            if (!cancelled) {
+              setActiveUpload(null)
+              window.location.reload()
+            }
             return
           }
           if (status === "error") {
-            if (!cancelled) { setActiveUpload(null); toast.error("Verarbeitung fehlgeschlagen") }
+            if (!cancelled) {
+              setActiveUpload(null)
+              toast.error("Verarbeitung fehlgeschlagen")
+            }
             return
           }
         } catch {
           // network hiccup — continue polling
         }
       }
-      if (!cancelled) { setActiveUpload(null); toast.error("Timeout beim Verarbeiten") }
+      if (!cancelled) {
+        setActiveUpload(null)
+        toast.error("Timeout beim Verarbeiten")
+      }
     }
 
     poll()
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [activeUpload?.sourceId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleMinimize(sourceId: string, title: string) {
@@ -331,11 +378,22 @@ export function SourceSidebar({
     })
   }
 
+  function emitSourceCount(newEnabledMap: Record<string, boolean>) {
+    const count = initialSources.filter(
+      (s) => s.status === "ready" && (newEnabledMap[s.id] ?? true)
+    ).length
+    window.dispatchEvent(new CustomEvent("notebook:source-count-change", { detail: { count } }))
+  }
+
   function handleToggleEnabled(source: Source) {
     const next = !(enabledMap[source.id] ?? true)
-    setEnabledMap((prev) => ({ ...prev, [source.id]: next }))
+    const newMap = { ...enabledMap, [source.id]: next }
+    setEnabledMap(newMap)
+    emitSourceCount(newMap)
     toggleSourceEnabled(source.id, notebookId, next).catch(() => {
-      setEnabledMap((prev) => ({ ...prev, [source.id]: !next }))
+      const revertedMap = { ...newMap, [source.id]: !next }
+      setEnabledMap(revertedMap)
+      emitSourceCount(revertedMap)
       toast.error(t("toggleError"))
     })
   }
@@ -343,14 +401,14 @@ export function SourceSidebar({
   function handleToggleAll(readySources: Source[]) {
     const allEnabled = readySources.every((s) => enabledMap[s.id] ?? true)
     const next = !allEnabled
-    setEnabledMap((prev) => ({
-      ...prev,
+    const newMap = {
+      ...enabledMap,
       ...Object.fromEntries(readySources.map((s) => [s.id, next])),
-    }))
+    }
+    setEnabledMap(newMap)
+    emitSourceCount(newMap)
     Promise.all(
-      readySources.map((s) =>
-        toggleSourceEnabled(s.id, notebookId, next).catch(() => undefined)
-      )
+      readySources.map((s) => toggleSourceEnabled(s.id, notebookId, next).catch(() => undefined))
     ).catch(() => toast.error(t("toggleError")))
   }
 
@@ -382,14 +440,19 @@ export function SourceSidebar({
     <>
       <aside
         className={cn(
-          "flex shrink-0 flex-col border-r bg-background transition-all duration-200",
+          "bg-background flex shrink-0 flex-col border-r transition-all duration-200",
           collapsed ? "w-12" : "w-96"
         )}
       >
         {/* Collapsed state: just the toggle button */}
         {collapsed ? (
           <div className="flex h-12 items-center justify-center border-b">
-            <Button variant="ghost" size="icon" className="size-7" onClick={() => setCollapsed(false)}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-7"
+              onClick={() => setCollapsed(false)}
+            >
               <PanelLeftOpen className="size-4" />
             </Button>
           </div>
@@ -401,7 +464,12 @@ export function SourceSidebar({
           <>
             <div className="flex h-12 items-center justify-between border-b px-3">
               <span className="text-sm font-medium">Quellen</span>
-              <Button variant="ghost" size="icon" className="size-7 shrink-0" onClick={() => setCollapsed(true)}>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-7 shrink-0"
+                onClick={() => setCollapsed(true)}
+              >
                 <PanelLeftClose className="size-4" />
               </Button>
             </div>
@@ -418,7 +486,7 @@ export function SourceSidebar({
               </Button>
 
               <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
+                <Search className="text-muted-foreground absolute top-2.5 left-2.5 size-3.5" />
                 <Input
                   placeholder="Quellen durchsuchen"
                   value={search}
@@ -427,45 +495,47 @@ export function SourceSidebar({
                 />
               </div>
 
-              {filtered.length > 0 && (() => {
-                const readySources = filtered.filter((s) => s.status === "ready")
-                const allEnabled = readySources.length > 0 && readySources.every((s) => enabledMap[s.id] ?? true)
-                return (
-                  <div className="flex items-center justify-end gap-2 px-2 py-1">
-                    <span className="text-xs text-muted-foreground">{t("selectAll")}</span>
-                    <input
-                      type="checkbox"
-                      checked={allEnabled}
-                      onChange={() => handleToggleAll(readySources)}
-                      className="size-3.5 cursor-pointer accent-primary"
-                    />
-                  </div>
-                )
-              })()}
+              {filtered.length > 0 &&
+                (() => {
+                  const readySources = filtered.filter((s) => s.status === "ready")
+                  const allEnabled =
+                    readySources.length > 0 && readySources.every((s) => enabledMap[s.id] ?? true)
+                  return (
+                    <div className="flex items-center justify-end gap-2 px-2 py-1">
+                      <span className="text-muted-foreground text-xs">{t("selectAll")}</span>
+                      <input
+                        type="checkbox"
+                        checked={allEnabled}
+                        onChange={() => handleToggleAll(readySources)}
+                        className="accent-primary size-3.5 cursor-pointer"
+                      />
+                    </div>
+                  )
+                })()}
 
               <ul className="space-y-0.5">
                 {activeUpload && (
-                  <li className="flex items-center gap-2 rounded-md bg-muted/50 px-2 py-2">
-                    <Loader2 className="size-4 shrink-0 animate-spin text-primary" />
+                  <li className="bg-muted/50 flex items-center gap-2 rounded-md px-2 py-2">
+                    <Loader2 className="text-primary size-4 shrink-0 animate-spin" />
                     <div className="min-w-0 flex-1">
                       <span className="block truncate text-sm" title={activeUpload.title}>
                         {activeUpload.title}
                       </span>
                       <div className="mt-1 flex items-center gap-1.5">
-                        <div className="h-1 flex-1 overflow-hidden rounded-full bg-muted">
+                        <div className="bg-muted h-1 flex-1 overflow-hidden rounded-full">
                           {activeUpload.embedPct > 0 ? (
                             <div
-                              className="h-full bg-primary transition-all duration-500"
+                              className="bg-primary h-full transition-all duration-500"
                               style={{ width: `${activeUpload.embedPct}%` }}
                             />
                           ) : (
-                            <div className="h-full w-1/3 animate-pulse bg-primary" />
+                            <div className="bg-primary h-full w-1/3 animate-pulse" />
                           )}
                         </div>
                         <button
                           type="button"
                           onClick={handleCancelActiveUpload}
-                          className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground"
+                          className="text-muted-foreground hover:text-foreground shrink-0 rounded p-0.5"
                           title="Abbrechen"
                         >
                           <X className="size-3" />
@@ -477,7 +547,7 @@ export function SourceSidebar({
 
                 {filtered.length === 0 && !activeUpload ? (
                   <li>
-                    <p className="py-6 text-center text-xs text-muted-foreground">
+                    <p className="text-muted-foreground py-6 text-center text-xs">
                       {initialSources.length === 0
                         ? "Noch keine Quellen vorhanden"
                         : "Keine Treffer"}
@@ -488,12 +558,12 @@ export function SourceSidebar({
                     <li
                       key={source.id}
                       className={cn(
-                        "group flex items-center gap-2 rounded-md px-2 py-2 hover:bg-muted",
+                        "group hover:bg-muted flex items-center gap-2 rounded-md px-2 py-2",
                         !(enabledMap[source.id] ?? true) && "opacity-50"
                       )}
                     >
                       {loadingSourceId === source.id ? (
-                        <Loader2 className="size-4 shrink-0 animate-spin text-muted-foreground" />
+                        <Loader2 className="text-muted-foreground size-4 shrink-0 animate-spin" />
                       ) : (
                         <SourceTypeIcon type={source.type} status={source.status} />
                       )}
@@ -507,10 +577,10 @@ export function SourceSidebar({
                       </button>
                       <DropdownMenu>
                         <DropdownMenuTrigger
-                          className="shrink-0 rounded p-0.5 opacity-0 transition-opacity hover:bg-muted-foreground/20 group-hover:opacity-100 focus:opacity-100"
+                          className="hover:bg-muted-foreground/20 shrink-0 rounded p-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100"
                           aria-label="Optionen"
                         >
-                          <MoreHorizontal className="size-4 text-muted-foreground" />
+                          <MoreHorizontal className="text-muted-foreground size-4" />
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => handleRenameOpen(source)}>
@@ -532,8 +602,10 @@ export function SourceSidebar({
                         onChange={() => handleToggleEnabled(source)}
                         onClick={(e) => e.stopPropagation()}
                         disabled={source.status !== "ready"}
-                        className="size-3.5 shrink-0 cursor-pointer accent-primary disabled:cursor-default"
-                        title={(enabledMap[source.id] ?? true) ? t("disableSource") : t("enableSource")}
+                        className="accent-primary size-3.5 shrink-0 cursor-pointer disabled:cursor-default"
+                        title={
+                          (enabledMap[source.id] ?? true) ? t("disableSource") : t("enableSource")
+                        }
                       />
                     </li>
                   ))
