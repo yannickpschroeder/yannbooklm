@@ -6,9 +6,11 @@ import { DeleteObjectCommand } from "@aws-sdk/client-s3"
 import { s3, S3_BUCKET } from "@/lib/s3/client"
 import { parsePdf } from "./pdf"
 import { scrapeUrl } from "./web"
+import { fetchYoutubeContent } from "./youtube"
 import { buildParentChunks, buildChildChunks } from "./chunking"
 import { embedBatch } from "@/lib/ai/voyage"
 import type { PdfPage } from "./pdf"
+import type { ParentChunk, ChildChunk } from "./chunking"
 
 const EMBED_BATCH_SIZE = 16
 const INTER_BATCH_DELAY_MS = 300
@@ -22,6 +24,19 @@ export async function ingestUrl(sourceId: string, url: string): Promise<void> {
     await db.update(sources).set({ status: "ready" }).where(eq(sources.id, sourceId))
   } catch (err) {
     console.error(`[ingest] URL ingestion failed for source ${sourceId}:`, err)
+    await db.delete(sources).where(eq(sources.id, sourceId))
+  }
+}
+
+export async function ingestYoutube(sourceId: string, url: string): Promise<void> {
+  try {
+    await db.update(sources).set({ status: "processing" }).where(eq(sources.id, sourceId))
+    const { title, parentChunks: parents, childChunks: children } = await fetchYoutubeContent(url)
+    await db.update(sources).set({ title }).where(eq(sources.id, sourceId))
+    await ingestPrebuiltChunks(sourceId, parents, children)
+    await db.update(sources).set({ status: "ready" }).where(eq(sources.id, sourceId))
+  } catch (err) {
+    console.error(`[ingest] YouTube ingestion failed for source ${sourceId}:`, err)
     await db.delete(sources).where(eq(sources.id, sourceId))
   }
 }
@@ -41,10 +56,33 @@ export async function ingestPdf(sourceId: string, s3Key: string): Promise<void> 
   }
 }
 
+async function ingestPrebuiltChunks(
+  sourceId: string,
+  parents: (ParentChunk & { startSeconds?: number })[],
+  children: (ChildChunk & { parentIndex: number })[]
+): Promise<void> {
+  const parentsWithIds = parents.map((p) => ({
+    id: randomUUID() as string,
+    sourceId,
+    content: p.content,
+    pageNumber: p.pageNumber,
+    positionStart: p.positionStart,
+    positionEnd: p.positionEnd,
+  }))
+
+  await db.insert(parentChunks).values(parentsWithIds)
+
+  const allChildren = children.map((child) => ({
+    ...child,
+    parentId: parentsWithIds[child.parentIndex].id,
+  }))
+
+  await embedAndInsertChildren(sourceId, allChildren)
+}
+
 async function ingestPages(sourceId: string, pages: PdfPage[]): Promise<void> {
   const parentChunkData = buildParentChunks(pages)
 
-  // Assign IDs client-side so child chunks can reference them directly
   const parentsWithIds = parentChunkData.map((p) => ({
     id: randomUUID() as string,
     sourceId,
@@ -63,6 +101,17 @@ async function ingestPages(sourceId: string, pages: PdfPage[]): Promise<void> {
     }))
   )
 
+  await embedAndInsertChildren(sourceId, allChildren)
+}
+
+type EmbeddableChild = {
+  content: string
+  pageNumber: number
+  positionStart: number
+  parentId: string
+}
+
+async function embedAndInsertChildren(sourceId: string, allChildren: EmbeddableChild[]): Promise<void> {
   const totalBatches = Math.ceil(allChildren.length / EMBED_BATCH_SIZE)
 
   for (let i = 0; i < allChildren.length; i += EMBED_BATCH_SIZE) {

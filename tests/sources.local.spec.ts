@@ -5,6 +5,7 @@ import { test, expect } from "./fixtures.local"
 const KORFU_URL =
   "https://www.griechenland-urlaub.net/sehenswuerdigkeiten/insel_korfu.html"
 const KRETA_PDF = path.join(__dirname, "fixtures/kreta-reisefuehrer.pdf")
+const YOUTUBE_URL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
 
 // Helper: create a notebook and navigate into it, returns notebookId
 async function createNotebook(page: Page, name: string) {
@@ -98,6 +99,21 @@ test.describe("Sources @local", () => {
     await expect(page.locator("aside").getByText("Korfu und seine", { exact: false })).not.toBeVisible()
 
     await deleteNotebook(page, "E2E Rename Test")
+  })
+
+  test("YouTube-Quelle hinzufügen und indizieren", async ({ page }) => {
+    await createNotebook(page, "E2E YouTube Test")
+
+    await page.getByRole("button", { name: "Quellen hinzufügen" }).click()
+    await page.getByRole("button", { name: "Websites" }).click()
+    await page.getByPlaceholder("https://example.com/artikel").fill(YOUTUBE_URL)
+    await page.getByRole("button", { name: "Hinzufügen" }).click()
+
+    await expect(
+      page.locator("aside").getByText("Kreta Reiseführer", { exact: false })
+    ).toBeVisible({ timeout: 10 * 60 * 1000 })
+
+    await deleteNotebook(page, "E2E YouTube Test")
   })
 
   test("Quelle löschen", async ({ page }) => {

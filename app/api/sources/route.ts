@@ -4,7 +4,8 @@ import { after } from "next/server"
 import { db } from "@/db"
 import { sources, notebooks } from "@/db/schema"
 import { and, eq } from "drizzle-orm"
-import { ingestPdf, ingestUrl } from "@/lib/ingestion/pipeline"
+import { ingestPdf, ingestUrl, ingestYoutube } from "@/lib/ingestion/pipeline"
+import { extractVideoId } from "@/lib/ingestion/youtube"
 
 export const maxDuration = 10
 
@@ -37,13 +38,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Only http/https URLs allowed" }, { status: 400 })
     }
 
+    const isYoutube = extractVideoId(body.url) !== null
+    const sourceType = isYoutube ? "youtube" : "url"
+
     const [source] = await db
       .insert(sources)
-      .values({ notebookId: body.notebookId, type: "url", title: parsedUrl.hostname, url: body.url, status: "pending" })
+      .values({ notebookId: body.notebookId, type: sourceType, title: parsedUrl.hostname, url: body.url, status: "pending" })
       .returning()
 
     after(async () => {
-      await ingestUrl(source.id, body.url)
+      if (isYoutube) {
+        await ingestYoutube(source.id, body.url)
+      } else {
+        await ingestUrl(source.id, body.url)
+      }
     })
 
     return NextResponse.json({ sourceId: source.id }, { status: 202 })
