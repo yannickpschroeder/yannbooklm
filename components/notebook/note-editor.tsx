@@ -2,7 +2,6 @@
 
 import { useEditor, EditorContent } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
-import Link from "@tiptap/extension-link"
 import Placeholder from "@tiptap/extension-placeholder"
 import { Markdown } from "tiptap-markdown"
 import {
@@ -48,7 +47,6 @@ export function NoteEditor({
   const editor = useEditor({
     extensions: [
       StarterKit,
-      Link.configure({ openOnClick: false }),
       Placeholder.configure({ placeholder: placeholder ?? "" }),
       Markdown.configure({ transformPastedText: true }),
     ],
