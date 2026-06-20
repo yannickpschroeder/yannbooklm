@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { useTranslations } from "next-intl"
+import { useTranslations, useLocale } from "next-intl"
 import {
   PanelRightClose,
   PanelRightOpen,
@@ -95,6 +95,7 @@ export function StudioSidebar({
 }) {
   const t = useTranslations("notes")
   const tStudio = useTranslations("studio")
+  const locale = useLocale()
   const [collapsed, setCollapsed] = useState(false)
   const [notesList, setNotesList] = useState<Note[]>(initialNotes)
   const [activeNote, setActiveNote] = useState<Note | null>(null)
@@ -203,6 +204,54 @@ export function StudioSidebar({
     } catch {
       toast.error(t("setAsSourceError"))
       setIsSettingSource(false)
+    }
+  }
+
+  async function handleSetAllAsSource() {
+    const SEPARATOR = "\n\n" + "-".repeat(80) + "\n\n"
+    const eligible = notesList.filter((n) => n.content.trim().length >= 5)
+
+    if (eligible.length === 0) {
+      toast.warning(t("setAllAsSourceEmpty"))
+      return
+    }
+
+    const text = eligible
+      .map((n) => [n.title, n.content.trim()].filter(Boolean).join("\n\n"))
+      .join(SEPARATOR)
+
+    if (text.length > 10_000) {
+      toast.error(t("setAllAsSourceTooLong"))
+      return
+    }
+
+    const hashBuffer = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text))
+    const hash = Array.from(new Uint8Array(hashBuffer)).map((b) => b.toString(16).padStart(2, "0")).join("")
+
+    const checkRes = await fetch(
+      `/api/sources/check?notebookId=${encodeURIComponent(notebookId)}&hash=${encodeURIComponent(hash)}`
+    )
+    if (checkRes.ok) {
+      const { duplicate } = (await checkRes.json()) as { duplicate: { title: string } | null }
+      if (duplicate) {
+        toast.warning(t("setAsSourceDuplicate"))
+        return
+      }
+    }
+
+    const title = `${t("allNotesSourcePrefix")} ${new Date().toLocaleDateString(locale)}`
+
+    try {
+      const res = await fetch("/api/sources", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notebookId, type: "text", title, text, fileHash: hash }),
+      })
+      if (!res.ok) throw new Error()
+      toast.success(t("setAllAsSourceSuccess"))
+      window.location.reload()
+    } catch {
+      toast.error(t("setAsSourceError"))
     }
   }
 
@@ -368,7 +417,7 @@ export function StudioSidebar({
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => devTodo("setAsSource")}>{t("setAsSource")}</DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => devTodo("setAllAsSource")}>{t("setAllAsSource")}</DropdownMenuItem>
+                            <DropdownMenuItem onClick={handleSetAllAsSource}>{t("setAllAsSource")}</DropdownMenuItem>
                             <DropdownMenuItem onClick={() => item.note && handleExportToDocs(item.note)} disabled={!item.note}>{t("exportToDocs")}</DropdownMenuItem>
                             <DropdownMenuItem onClick={() => devTodo("exportToSheets")}>{t("exportToSheets")}</DropdownMenuItem>
                             {item.kind === "note" && (

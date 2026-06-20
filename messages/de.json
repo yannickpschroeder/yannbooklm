@@ -86,6 +86,10 @@
     "setAsSourceDuplicate": "Dieser Text ist bereits als Quelle vorhanden",
     "setAsSourceError": "Fehler beim Hinzufügen als Quelle",
     "setAllAsSource": "Alle Notizen als Quelle festlegen",
+    "setAllAsSourceSuccess": "Alle Notizen werden als Quelle verarbeitet",
+    "setAllAsSourceEmpty": "Keine Notizen mit ausreichend Inhalt vorhanden",
+    "setAllAsSourceTooLong": "Alle Notizen zusammen sind zu lang (max. 10.000 Zeichen)",
+    "allNotesSourcePrefix": "Alle Notizen",
     "exportToDocs": "In Docs exportieren",
     "exportToSheets": "Nach Google Sheets exportieren"
   },

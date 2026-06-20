@@ -86,6 +86,10 @@
     "setAsSourceDuplicate": "This text already exists as a source",
     "setAsSourceError": "Failed to add as source",
     "setAllAsSource": "Set all notes as source",
+    "setAllAsSourceSuccess": "All notes are being processed as source",
+    "setAllAsSourceEmpty": "No notes with sufficient content",
+    "setAllAsSourceTooLong": "All notes combined are too long (max. 10,000 characters)",
+    "allNotesSourcePrefix": "All Notes",
     "exportToDocs": "Export to Docs",
     "exportToSheets": "Export to Sheets"
   },
