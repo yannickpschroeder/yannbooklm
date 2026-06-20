@@ -24,6 +24,13 @@ const PARENT_MAX_CHARS = PARENT_MAX_TOKENS * CHARS_PER_TOKEN
 const CHILD_MAX_CHARS = CHILD_MAX_TOKENS * CHARS_PER_TOKEN
 const CHILD_OVERLAP_CHARS = CHILD_OVERLAP_TOKENS * CHARS_PER_TOKEN
 
+const IMAGE_MARKDOWN_RE = /!\[.*?\]\(s3:\/\/[^)]+\)/g
+
+// Strip image markdown for text-only child chunks (used for RAG embeddings)
+function stripImages(content: string): string {
+  return content.replace(IMAGE_MARKDOWN_RE, "").replace(/\n{3,}/g, "\n\n").trim()
+}
+
 export function buildParentChunks(pages: PdfPage[]): ParentChunk[] {
   const chunks: ParentChunk[] = []
   let buffer = ""
@@ -31,10 +38,11 @@ export function buildParentChunks(pages: PdfPage[]): ParentChunk[] {
   let chunkStart = 0
 
   for (const page of pages) {
-    const sentences = splitIntoSentences(page.text)
+    // Treat image markdown as atomic units alongside text sentences
+    const segments = splitIntoSegments(page.content)
 
-    for (const sentence of sentences) {
-      if (buffer.length + sentence.length > PARENT_MAX_CHARS && buffer.length > 0) {
+    for (const segment of segments) {
+      if (buffer.length + segment.length > PARENT_MAX_CHARS && buffer.length > 0) {
         chunks.push({
           content: buffer.trim(),
           pageNumber: bufferPage,
@@ -47,7 +55,7 @@ export function buildParentChunks(pages: PdfPage[]): ParentChunk[] {
       }
 
       if (buffer.length === 0) bufferPage = page.pageNumber
-      buffer += (buffer ? " " : "") + sentence
+      buffer += (buffer ? "\n\n" : "") + segment
     }
   }
 
@@ -64,14 +72,14 @@ export function buildParentChunks(pages: PdfPage[]): ParentChunk[] {
 }
 
 export function buildChildChunks(parent: ParentChunk, parentIndex: number): ChildChunk[] {
-  const text = parent.content
+  // Child chunks are text-only — images are stripped before embedding
+  const text = stripImages(parent.content)
   const children: ChildChunk[] = []
   let start = 0
 
   while (start < text.length) {
     const end = Math.min(start + CHILD_MAX_CHARS, text.length)
 
-    // Try to break at sentence boundary
     let breakAt = end
     if (end < text.length) {
       const slice = text.slice(start, end)
@@ -97,6 +105,34 @@ export function buildChildChunks(parent: ParentChunk, parentIndex: number): Chil
   }
 
   return children
+}
+
+// Split content into atomic segments: text sentences and image markdown blocks
+function splitIntoSegments(content: string): string[] {
+  const segments: string[] = []
+  let remaining = content
+
+  while (remaining.length > 0) {
+    const imgMatch = remaining.match(/!\[.*?\]\(s3:\/\/[^)]+\)/)
+    if (!imgMatch || imgMatch.index === undefined) {
+      // No more images — split remaining text into sentences
+      const sentences = splitIntoSentences(remaining)
+      segments.push(...sentences)
+      break
+    }
+
+    // Text before the image
+    const textBefore = remaining.slice(0, imgMatch.index).trim()
+    if (textBefore) {
+      segments.push(...splitIntoSentences(textBefore))
+    }
+
+    // Image as atomic segment
+    segments.push(imgMatch[0])
+    remaining = remaining.slice(imgMatch.index + imgMatch[0].length).trim()
+  }
+
+  return segments.filter((s) => s.length > 0)
 }
 
 function splitIntoSentences(text: string): string[] {

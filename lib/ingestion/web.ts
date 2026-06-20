@@ -81,6 +81,6 @@ function textToPages(text: string): PdfPage[] {
     .map((p) => p.trim())
     .filter((p) => p.length > 10)
 
-  if (paragraphs.length === 0) return [{ text, pageNumber: 1 }]
-  return paragraphs.map((p, i) => ({ text: p, pageNumber: i + 1 }))
+  if (paragraphs.length === 0) return [{ content: text, pageNumber: 1 }]
+  return paragraphs.map((p, i) => ({ content: p, pageNumber: i + 1 }))
 }

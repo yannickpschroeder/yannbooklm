@@ -39,7 +39,7 @@ export async function fetchYoutubeContent(url: string): Promise<{
 
   const pages = [...buckets.entries()]
     .sort(([a], [b]) => a - b)
-    .map(([startSec, texts]) => ({ pageNumber: startSec, text: texts.join(" ") }))
+    .map(([startSec, texts]) => ({ pageNumber: startSec, content: texts.join(" ") }))
 
   // pageNumber (= start second) is propagated through parent → child by the chunking algo
   const parents = buildParentChunks(pages)

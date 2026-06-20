@@ -44,7 +44,7 @@ export async function ingestYoutube(sourceId: string, url: string): Promise<void
 export async function ingestPdf(sourceId: string, s3Key: string): Promise<void> {
   try {
     await db.update(sources).set({ status: "processing" }).where(eq(sources.id, sourceId))
-    const { pages } = await parsePdf(s3Key)
+    const { pages } = await parsePdf(s3Key, sourceId)
     await ingestPages(sourceId, pages)
     await db.update(sources).set({ status: "ready" }).where(eq(sources.id, sourceId))
   } catch (err) {

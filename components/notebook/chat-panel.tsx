@@ -13,6 +13,7 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/h
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
 import { openSourceView } from "@/lib/source-view-event"
+import { resolveS3ImageSrc } from "@/lib/s3-image-url"
 import type { ChatMessage, CitationChunk } from "@/lib/types/chat"
 
 // ─── Source icon helper ────────────────────────────────────────────────────────
@@ -38,7 +39,21 @@ function CitationHoverContent({ citation }: { citation: CitationChunk }) {
 
       {/* Section 2: Content */}
       <div className="text-muted-foreground max-h-56 overflow-y-auto px-3 py-2.5 text-xs leading-relaxed">
-        <Markdown remarkPlugins={[remarkGfm]}>{citation.content}</Markdown>
+        <Markdown
+          remarkPlugins={[remarkGfm]}
+          components={{
+            img(props) {
+              const { node: _node, src, alt, ...rest } = props
+              const srcStr = typeof src === "string" ? src : undefined
+              return (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={resolveS3ImageSrc(srcStr)} alt={alt ?? ""} className="my-2 max-w-full rounded" {...rest} />
+              )
+            },
+          }}
+        >
+          {citation.content}
+        </Markdown>
       </div>
 
       <Separator />
@@ -377,6 +392,14 @@ function AssistantContent({
         hr(props) {
           const { node: _node, ...rest } = props
           return <hr className="border-border my-4" {...rest} />
+        },
+        img(props) {
+          const { node: _node, src, alt, ...rest } = props
+          const srcStr = typeof src === "string" ? src : undefined
+          return (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={resolveS3ImageSrc(srcStr)} alt={alt ?? ""} className="my-3 max-w-full rounded-md" {...rest} />
+          )
         },
       }}
     >

@@ -37,6 +37,7 @@ import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { deleteSource, renameSource } from "@/lib/actions/sources"
 import { onSourceView, openSourceView } from "@/lib/source-view-event"
+import { resolveS3ImageSrc } from "@/lib/s3-image-url"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import type { Source } from "@/db/schema"
@@ -134,9 +135,10 @@ function SourceDetailPanel({
             },
             img(props) {
               const { node: _node, src, alt, ...rest } = props
+              const srcStr = typeof src === "string" ? src : undefined
               return (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={src} alt={alt ?? ""} className="my-3 w-full rounded-md object-cover" {...rest} />
+                <img src={resolveS3ImageSrc(srcStr)} alt={alt ?? ""} className="my-3 w-full rounded-md object-cover" {...rest} />
               )
             },
           }}
