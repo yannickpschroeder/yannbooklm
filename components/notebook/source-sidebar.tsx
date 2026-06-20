@@ -112,41 +112,43 @@ function SourceDetailPanel({
 
       <Separator />
 
-      {/* Quellenübersicht dropdown — fixed, not scrolling with content */}
+      {/* Quellenübersicht — card dropdown, fixed above scrollable content */}
       {chunk.sourceSummary && (
-        <div className="shrink-0 border-b">
-          <button
-            onClick={() => setSummaryOpen((p) => !p)}
-            className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm hover:bg-muted/50"
-          >
-            <Sparkles className="size-3.5 shrink-0 text-primary" />
-            <span className="flex-1 font-medium">Quellenübersicht</span>
-            {summaryOpen ? (
-              <ChevronUp className="size-3.5 shrink-0 text-muted-foreground" />
-            ) : (
-              <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
-            )}
-          </button>
-          {summaryOpen && (
-            <div className="max-h-64 overflow-y-auto border-t bg-muted/30 px-4 py-3 text-sm leading-relaxed text-foreground">
-              <Markdown remarkPlugins={[remarkGfm]}>{chunk.sourceSummary}</Markdown>
-              {chunk.sourceTopics && chunk.sourceTopics.length > 0 && (
-                <div className="mt-3 flex flex-wrap gap-1.5">
-                  {chunk.sourceTopics.map((topic) => (
-                    <button
-                      key={topic}
-                      onClick={() =>
-                        window.dispatchEvent(new CustomEvent("notebook:ask", { detail: { text: topic } }))
-                      }
-                      className="rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-xs text-primary hover:bg-primary/20"
-                    >
-                      {topic}
-                    </button>
-                  ))}
-                </div>
+        <div className="shrink-0 px-3 py-2">
+          <div className="overflow-hidden rounded-lg bg-violet-500/10 ring-1 ring-violet-500/20">
+            <button
+              onClick={() => setSummaryOpen((p) => !p)}
+              className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm hover:bg-violet-500/10"
+            >
+              <Sparkles className="size-3.5 shrink-0 text-violet-400" />
+              <span className="flex-1 font-medium text-violet-100">Quellenübersicht</span>
+              {summaryOpen ? (
+                <ChevronUp className="size-3.5 shrink-0 text-violet-400" />
+              ) : (
+                <ChevronDown className="size-3.5 shrink-0 text-violet-400" />
               )}
-            </div>
-          )}
+            </button>
+            {summaryOpen && (
+              <div className="max-h-64 overflow-y-auto border-t border-violet-500/20 px-3 py-3 text-sm leading-relaxed text-foreground">
+                <Markdown remarkPlugins={[remarkGfm]}>{chunk.sourceSummary}</Markdown>
+                {chunk.sourceTopics && chunk.sourceTopics.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {chunk.sourceTopics.map((topic) => (
+                      <button
+                        key={topic}
+                        onClick={() =>
+                          window.dispatchEvent(new CustomEvent("notebook:ask", { detail: { text: topic } }))
+                        }
+                        className="rounded-full border border-violet-500/30 bg-violet-500/15 px-2.5 py-0.5 text-xs text-violet-300 hover:bg-violet-500/25"
+                      >
+                        {topic}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
