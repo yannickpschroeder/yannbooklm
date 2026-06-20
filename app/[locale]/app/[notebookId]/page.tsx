@@ -19,5 +19,5 @@ export default async function NotebookPage({
     .from(sources)
     .where(and(eq(sources.notebookId, notebookId), eq(sources.status, "ready")))
 
-  return <ChatPanel readySourceCount={readySources.length} />
+  return <ChatPanel notebookId={notebookId} readySourceCount={readySources.length} />
 }
