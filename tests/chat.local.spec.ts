@@ -41,7 +41,9 @@ async function ingestPdf(page: Page, pdfPath: string, titleFragment: string) {
     page.locator("aside").getByText(titleFragment, { exact: false })
   ).toBeVisible({ timeout: 10 * 60 * 1000 })
   // Page reloads automatically on success — wait for modal to disappear
+  // then wait for full hydration before returning
   await expect(page.getByRole("dialog")).not.toBeVisible({ timeout: 10_000 })
+  await page.waitForLoadState("networkidle")
 }
 
 // @local
