@@ -99,6 +99,7 @@ export function StudioSidebar({
   const [activeNote, setActiveNote] = useState<Note | null>(null)
   const [editTitle, setEditTitle] = useState("")
   const [editContent, setEditContent] = useState("")
+  const [isSettingSource, setIsSettingSource] = useState(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const outputs: OutputItem[] = [
@@ -161,6 +162,47 @@ export function StudioSidebar({
   function handleContentChange(value: string) {
     setEditContent(value)
     if (activeNote) scheduleSave(editTitle, value, activeNote.id)
+  }
+
+  async function handleSetAsSource() {
+    if (!activeNote) return
+    const text = [editTitle, editContent].filter(Boolean).join("\n\n").trim()
+    if (!text) return
+
+    const hashBuffer = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text))
+    const hash = Array.from(new Uint8Array(hashBuffer)).map((b) => b.toString(16).padStart(2, "0")).join("")
+
+    const checkRes = await fetch(
+      `/api/sources/check?notebookId=${encodeURIComponent(notebookId)}&hash=${encodeURIComponent(hash)}`
+    )
+    if (checkRes.ok) {
+      const { duplicate } = (await checkRes.json()) as { duplicate: { title: string } | null }
+      if (duplicate) {
+        toast.warning(t("setAsSourceDuplicate"))
+        return
+      }
+    }
+
+    setIsSettingSource(true)
+    try {
+      const res = await fetch("/api/sources", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          notebookId,
+          type: "text",
+          title: editTitle || t("defaultTitle"),
+          text,
+          fileHash: hash,
+        }),
+      })
+      if (!res.ok) throw new Error()
+      toast.success(t("setAsSourceSuccess"))
+      window.location.reload()
+    } catch {
+      toast.error(t("setAsSourceError"))
+      setIsSettingSource(false)
+    }
   }
 
   async function handleDeleteNote(noteId: string) {
@@ -237,7 +279,12 @@ export function StudioSidebar({
 
             {/* Footer */}
             <div className="shrink-0 border-t p-3">
-              <Button variant="outline" size="sm" onClick={() => devTodo("setAsSource")}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSetAsSource}
+                disabled={isSettingSource}
+              >
                 {t("setAsSource")}
               </Button>
             </div>

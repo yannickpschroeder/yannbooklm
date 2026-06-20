@@ -82,6 +82,9 @@
     "deleteSuccess": "Note deleted",
     "deleteNote": "Delete",
     "setAsSource": "Set as source",
+    "setAsSourceSuccess": "Note is being processed as source",
+    "setAsSourceDuplicate": "This text already exists as a source",
+    "setAsSourceError": "Failed to add as source",
     "setAllAsSource": "Set all notes as source",
     "exportToDocs": "Export to Docs",
     "exportToSheets": "Export to Sheets"

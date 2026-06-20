@@ -11,7 +11,7 @@ export const maxDuration = 10
 
 type PdfPayload = { notebookId: string; type: "pdf"; title: string; s3Key: string; fileHash?: string }
 type UrlPayload = { notebookId: string; type: "url"; url: string }
-type TextPayload = { notebookId: string; type: "text"; title: string; text: string }
+type TextPayload = { notebookId: string; type: "text"; title: string; text: string; fileHash?: string }
 type Payload = PdfPayload | UrlPayload | TextPayload
 
 export async function POST(req: Request) {
@@ -64,7 +64,7 @@ export async function POST(req: Request) {
 
     const [source] = await db
       .insert(sources)
-      .values({ notebookId: body.notebookId, type: "text", title: body.title, status: "pending" })
+      .values({ notebookId: body.notebookId, type: "text", title: body.title, fileHash: body.fileHash, status: "pending" })
       .returning()
 
     const capturedText = body.text

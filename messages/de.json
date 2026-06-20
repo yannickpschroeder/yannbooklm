@@ -82,6 +82,9 @@
     "deleteSuccess": "Notiz gelöscht",
     "deleteNote": "Löschen",
     "setAsSource": "Als Quelle festlegen",
+    "setAsSourceSuccess": "Notiz wird als Quelle verarbeitet",
+    "setAsSourceDuplicate": "Dieser Text ist bereits als Quelle vorhanden",
+    "setAsSourceError": "Fehler beim Hinzufügen als Quelle",
     "setAllAsSource": "Alle Notizen als Quelle festlegen",
     "exportToDocs": "In Docs exportieren",
     "exportToSheets": "Nach Google Sheets exportieren"
