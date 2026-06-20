@@ -26,7 +26,11 @@
     "noSources": "No sources yet",
     "noSourcesHint": "Add a PDF, URL, or YouTube video.",
     "uploadSuccess": "Source is being processed",
-    "dragActive": "Drop PDF here"
+    "dragActive": "Drop PDF here",
+    "selectAll": "Select all",
+    "enableSource": "Enable source",
+    "disableSource": "Disable source",
+    "toggleError": "Failed to update"
   },
   "notebooks": {
     "title": "My Notebooks",

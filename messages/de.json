@@ -26,7 +26,11 @@
     "noSources": "Noch keine Quellen",
     "noSourcesHint": "Füge eine PDF, URL oder YouTube-Video hinzu.",
     "uploadSuccess": "Quelle wird verarbeitet",
-    "dragActive": "PDF hier ablegen"
+    "dragActive": "PDF hier ablegen",
+    "selectAll": "Alle auswählen",
+    "enableSource": "Quelle aktivieren",
+    "disableSource": "Quelle deaktivieren",
+    "toggleError": "Fehler beim Aktualisieren"
   },
   "notebooks": {
     "title": "Meine Notizbücher",

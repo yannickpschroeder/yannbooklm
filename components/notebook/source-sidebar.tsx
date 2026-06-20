@@ -1,5 +1,6 @@
 "use client"
 
+import { useTranslations } from "next-intl"
 import { useEffect, useRef, useState, useTransition } from "react"
 import {
   Plus,
@@ -227,6 +228,7 @@ export function SourceSidebar({
   const [renameTarget, setRenameTarget] = useState<Source | null>(null)
   const [renameValue, setRenameValue] = useState("")
   const [isPending, startTransition] = useTransition()
+  const t = useTranslations("sources")
   const [activeChunk, setActiveChunk] = useState<CitationChunk | null>(null)
   const [loadingSourceId, setLoadingSourceId] = useState<string | null>(null)
   const [enabledMap, setEnabledMap] = useState<Record<string, boolean>>(
@@ -334,7 +336,7 @@ export function SourceSidebar({
     setEnabledMap((prev) => ({ ...prev, [source.id]: next }))
     toggleSourceEnabled(source.id, notebookId, next).catch(() => {
       setEnabledMap((prev) => ({ ...prev, [source.id]: !next }))
-      toast.error("Fehler beim Aktualisieren")
+      toast.error(t("toggleError"))
     })
   }
 
@@ -349,7 +351,7 @@ export function SourceSidebar({
       readySources.map((s) =>
         toggleSourceEnabled(s.id, notebookId, next).catch(() => undefined)
       )
-    ).catch(() => toast.error("Fehler beim Aktualisieren"))
+    ).catch(() => toast.error(t("toggleError")))
   }
 
   async function handleSourceClick(source: Source) {
@@ -430,7 +432,7 @@ export function SourceSidebar({
                 const allEnabled = readySources.length > 0 && readySources.every((s) => enabledMap[s.id] ?? true)
                 return (
                   <div className="flex items-center px-2 py-1">
-                    <span className="flex-1 text-xs text-muted-foreground">Alle auswählen</span>
+                    <span className="flex-1 text-xs text-muted-foreground">{t("selectAll")}</span>
                     <input
                       type="checkbox"
                       checked={allEnabled}
@@ -531,7 +533,7 @@ export function SourceSidebar({
                         onClick={(e) => e.stopPropagation()}
                         disabled={source.status !== "ready"}
                         className="size-3.5 shrink-0 cursor-pointer accent-primary disabled:cursor-default"
-                        title={(enabledMap[source.id] ?? true) ? "Quelle deaktivieren" : "Quelle aktivieren"}
+                        title={(enabledMap[source.id] ?? true) ? t("disableSource") : t("enableSource")}
                       />
                     </li>
                   ))
