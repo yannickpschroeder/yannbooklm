@@ -8,4 +8,4 @@ export const s3 = new S3Client({
   },
 })
 
-export const S3_BUCKET = process.env.AWS_S3_BUCKET!
+export const S3_BUCKET = (process.env.AWS_S3_BUCKET ?? process.env.S3_BUCKET)!

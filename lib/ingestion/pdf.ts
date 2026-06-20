@@ -1,4 +1,5 @@
 import { GetObjectCommand } from "@aws-sdk/client-s3"
+import { resolve } from "path"
 import { s3, S3_BUCKET } from "@/lib/s3/client"
 
 export interface PdfPage {
@@ -21,11 +22,10 @@ async function downloadFromS3(s3Key: string): Promise<Uint8Array> {
 export async function parsePdf(s3Key: string): Promise<PdfParseResult> {
   const data = await downloadFromS3(s3Key)
 
-  // Dynamic import avoids bundler issues with pdfjs-dist worker code
   const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs")
 
-  // Disable worker in Node.js environment
-  pdfjsLib.GlobalWorkerOptions.workerSrc = ""
+  // pdfjs v5 requires an explicit workerSrc even for the Node.js fake-worker path
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `file://${resolve("node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs")}`
 
   const pdf = await pdfjsLib.getDocument({
     data,

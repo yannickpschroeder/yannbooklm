@@ -1,8 +1,8 @@
 import { auth } from "@/lib/auth"
 import { redirect, notFound } from "next/navigation"
 import { db } from "@/db"
-import { notebooks } from "@/db/schema"
-import { and, eq } from "drizzle-orm"
+import { notebooks, sources } from "@/db/schema"
+import { and, eq, desc } from "drizzle-orm"
 import { NotebookHeader } from "@/components/notebook/notebook-header"
 import { SourceSidebar } from "@/components/notebook/source-sidebar"
 import { StudioSidebar } from "@/components/notebook/studio-sidebar"
@@ -26,11 +26,17 @@ export default async function NotebookLayout({
 
   if (!notebook) notFound()
 
+  const notebookSources = await db
+    .select()
+    .from(sources)
+    .where(eq(sources.notebookId, notebookId))
+    .orderBy(desc(sources.createdAt))
+
   return (
     <div className="flex h-screen flex-col overflow-hidden">
       <NotebookHeader notebookName={notebook.name} />
       <div className="flex flex-1 overflow-hidden">
-        <SourceSidebar />
+        <SourceSidebar notebookId={notebookId} initialSources={notebookSources} />
         <main className="flex flex-1 overflow-hidden">{children}</main>
         <StudioSidebar />
       </div>

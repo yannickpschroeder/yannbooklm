@@ -15,6 +15,22 @@ async function requireUser() {
   return session.user.id
 }
 
+export async function renameSource(sourceId: string, notebookId: string, title: string) {
+  const userId = await requireUser()
+
+  const [source] = await db
+    .select({ id: sources.id })
+    .from(sources)
+    .innerJoin(notebooks, eq(sources.notebookId, notebooks.id))
+    .where(and(eq(sources.id, sourceId), eq(notebooks.userId, userId)))
+    .limit(1)
+
+  if (!source) return
+
+  await db.update(sources).set({ title }).where(eq(sources.id, sourceId))
+  revalidatePath(`/[locale]/app/${notebookId}`, "page")
+}
+
 export async function deleteSource(sourceId: string, notebookId: string) {
   const userId = await requireUser()
 

@@ -92,6 +92,7 @@ export const sources = pgTable("sources", {
   title: text("title").notNull(),
   url: text("url"),
   s3Key: text("s3_key"),
+  fileHash: text("file_hash"),
   status: sourceStatusEnum("status").notNull().default("pending"),
   enabled: boolean("enabled").notNull().default(true),
   createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
