@@ -94,6 +94,7 @@ export const sources = pgTable("sources", {
   s3Key: text("s3_key"),
   fileHash: text("file_hash"),
   summary: text("summary"),
+  suggestedTopics: jsonb("suggested_topics").$type<string[]>(),
   embedProgress: integer("embed_progress").notNull().default(0),
   status: sourceStatusEnum("status").notNull().default("pending"),
   enabled: boolean("enabled").notNull().default(true),

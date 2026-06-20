@@ -424,6 +424,18 @@ export function ChatPanel({
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
+  useEffect(() => {
+    function onAsk(e: Event) {
+      const text = (e as CustomEvent<{ text: string }>).detail?.text?.trim()
+      if (!text || isStreaming || readySourceCount === 0) return
+      setInput("")
+      setActiveCitation(null)
+      sendMessage({ text })
+    }
+    window.addEventListener("notebook:ask", onAsk)
+    return () => window.removeEventListener("notebook:ask", onAsk)
+  }, [isStreaming, readySourceCount, sendMessage])
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     const text = input.trim()

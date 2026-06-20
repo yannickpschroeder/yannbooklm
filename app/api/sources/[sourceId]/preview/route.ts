@@ -20,6 +20,7 @@ export async function GET(
       type: sources.type,
       url: sources.url,
       summary: sources.summary,
+      suggestedTopics: sources.suggestedTopics,
       notebookId: sources.notebookId,
     })
     .from(sources)
@@ -48,6 +49,7 @@ export async function GET(
     sourceTitle: source.title,
     sourceType: source.type,
     sourceSummary: source.summary,
+    sourceTopics: source.suggestedTopics,
     url: source.url,
     positionStart: chunks[0]?.positionStart ?? null,
     pageNumber: chunks[0]?.pageNumber ?? null,

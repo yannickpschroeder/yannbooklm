@@ -19,28 +19,42 @@ const INTER_BATCH_DELAY_MS = 300
 // First ~6 000 chars of text is enough for a concise summary
 const SUMMARY_TEXT_LIMIT = 6000
 
-async function generateSummary(pages: PdfPage[]): Promise<string> {
+interface SourceMeta {
+  summary: string
+  topics: string[]
+}
+
+async function generateSourceMeta(pages: PdfPage[]): Promise<SourceMeta> {
   const text = pages
     .map((p) => p.content.replace(/!\[.*?\]\([^)]+\)/g, ""))
     .join("\n\n")
     .slice(0, SUMMARY_TEXT_LIMIT)
 
-  const { text: summary } = await generateText({
+  const { text: raw } = await generateText({
     model: claude,
     messages: [
       {
         role: "user",
         content:
-          `Summarize the following document in 3-5 German sentences. ` +
-          `Describe what the document is about, its structure, and the key topics it covers. ` +
-          `Be specific about the content — avoid generic phrases like "the document provides information about". ` +
-          `Use Markdown **bold** to highlight 4-8 key terms or topic phrases within the text. ` +
-          `Output only the summary text — no headings, no bullet points.\n\n` +
+          `Analyze the following document and respond with a JSON object (no markdown fences) with two keys:\n` +
+          `- "summary": 3-5 German sentences describing what the document is about, its structure, and key topics. ` +
+          `Use Markdown **bold** for 4-8 key terms. No headings or bullet points.\n` +
+          `- "topics": array of 4-6 short German questions a reader might want to ask about this document ` +
+          `(e.g. "Was sind die wichtigsten Sehenswürdigkeiten?"). Each question max 6 words.\n\n` +
           `Document:\n${text}`,
       },
     ],
   })
-  return summary.trim()
+
+  try {
+    const parsed = JSON.parse(raw.trim()) as SourceMeta
+    return {
+      summary: parsed.summary?.trim() ?? "",
+      topics: Array.isArray(parsed.topics) ? parsed.topics.slice(0, 6) : [],
+    }
+  } catch {
+    return { summary: raw.trim(), topics: [] }
+  }
 }
 
 export async function ingestUrl(sourceId: string, url: string): Promise<void> {
@@ -49,8 +63,8 @@ export async function ingestUrl(sourceId: string, url: string): Promise<void> {
     const { title, pages } = await scrapeUrl(url)
     await db.update(sources).set({ title }).where(eq(sources.id, sourceId))
     await ingestPages(sourceId, pages)
-    const summary = await generateSummary(pages)
-    await db.update(sources).set({ status: "ready", summary }).where(eq(sources.id, sourceId))
+    const { summary, topics } = await generateSourceMeta(pages)
+    await db.update(sources).set({ status: "ready", summary, suggestedTopics: topics }).where(eq(sources.id, sourceId))
   } catch (err) {
     console.error(`[ingest] URL ingestion failed for source ${sourceId}:`, err)
     await db.delete(sources).where(eq(sources.id, sourceId))
@@ -64,8 +78,8 @@ export async function ingestYoutube(sourceId: string, url: string): Promise<void
     await db.update(sources).set({ title }).where(eq(sources.id, sourceId))
     await ingestPrebuiltChunks(sourceId, parents, children)
     const pages = parents.map((p) => ({ pageNumber: p.pageNumber, content: p.content }))
-    const summary = await generateSummary(pages)
-    await db.update(sources).set({ status: "ready", summary }).where(eq(sources.id, sourceId))
+    const { summary, topics } = await generateSourceMeta(pages)
+    await db.update(sources).set({ status: "ready", summary, suggestedTopics: topics }).where(eq(sources.id, sourceId))
   } catch (err) {
     console.error(`[ingest] YouTube ingestion failed for source ${sourceId}:`, err)
     await db.delete(sources).where(eq(sources.id, sourceId))
@@ -77,8 +91,8 @@ export async function ingestPdf(sourceId: string, s3Key: string): Promise<void> 
     await db.update(sources).set({ status: "processing" }).where(eq(sources.id, sourceId))
     const { pages } = await parsePdf(s3Key, sourceId)
     await ingestPages(sourceId, pages)
-    const summary = await generateSummary(pages)
-    await db.update(sources).set({ status: "ready", summary }).where(eq(sources.id, sourceId))
+    const { summary, topics } = await generateSourceMeta(pages)
+    await db.update(sources).set({ status: "ready", summary, suggestedTopics: topics }).where(eq(sources.id, sourceId))
   } catch (err) {
     console.error(`[ingest] PDF ingestion failed for source ${sourceId}:`, err)
     await Promise.allSettled([

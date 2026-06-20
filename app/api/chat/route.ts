@@ -64,6 +64,7 @@ export async function POST(req: Request) {
       sourceTitle: sources.title,
       sourceType: sources.type,
       sourceSummary: sources.summary,
+      sourceTopics: sources.suggestedTopics,
       sourceUrl: sources.url,
     })
     .from(childChunks)
@@ -85,6 +86,7 @@ export async function POST(req: Request) {
     sourceTitle: c.sourceTitle,
     sourceType: c.sourceType,
     sourceSummary: c.sourceSummary,
+    sourceTopics: c.sourceTopics as string[] | null,
     url: c.sourceUrl,
     positionStart: c.positionStart,
     pageNumber: c.pageNumber,
