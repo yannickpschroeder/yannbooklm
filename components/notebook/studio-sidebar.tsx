@@ -53,7 +53,7 @@ export function StudioSidebar() {
     <aside
       className={cn(
         "flex shrink-0 flex-col border-l bg-background transition-all duration-200",
-        collapsed ? "w-12" : "w-80"
+        collapsed ? "w-12" : "w-96"
       )}
     >
       {/* Header */}

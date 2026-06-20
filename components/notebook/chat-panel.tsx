@@ -55,6 +55,46 @@ function CitationHoverContent({ citation }: { citation: CitationChunk }) {
   )
 }
 
+// ─── Citation badge row with expand/collapse ──────────────────────────────────
+
+const VISIBLE_THRESHOLD = 2
+
+function CitationBadgeRow({
+  citations,
+  activeCitation,
+  onCiteClick,
+}: {
+  citations: CitationChunk[]
+  activeCitation: CitationChunk | null
+  onCiteClick: (c: CitationChunk) => void
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const hasMore = citations.length > VISIBLE_THRESHOLD
+  const visible = hasMore && !expanded ? citations.slice(0, VISIBLE_THRESHOLD) : citations
+
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      <span className="text-xs text-muted-foreground">Quellen:</span>
+      {visible.map((c) => (
+        <CitationBadge
+          key={c.id}
+          citation={c}
+          active={activeCitation?.id === c.id}
+          onClick={() => onCiteClick(c)}
+        />
+      ))}
+      {hasMore && (
+        <button
+          onClick={() => setExpanded((p) => !p)}
+          className="inline-flex h-[18px] items-center rounded-full bg-muted px-1.5 text-[10px] font-medium text-muted-foreground hover:bg-muted/80"
+        >
+          {expanded ? "⟨ ⟩" : `···`}
+        </button>
+      )}
+    </div>
+  )
+}
+
 // ─── Citation badge with hover card ───────────────────────────────────────────
 
 function CitationBadge({
@@ -290,17 +330,11 @@ export function ChatPanel({
                       />
                     </div>
                     {uniqueCitations.length > 0 && (
-                      <div className="flex flex-wrap items-center gap-1">
-                        <span className="text-xs text-muted-foreground">Quellen:</span>
-                        {uniqueCitations.map((c) => (
-                          <CitationBadge
-                            key={c.id}
-                            citation={c}
-                            active={activeCitation?.id === c.id}
-                            onClick={() => handleCiteClick(c)}
-                          />
-                        ))}
-                      </div>
+                      <CitationBadgeRow
+                        citations={uniqueCitations}
+                        activeCitation={activeCitation}
+                        onCiteClick={handleCiteClick}
+                      />
                     )}
                   </div>
                 )

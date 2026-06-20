@@ -292,7 +292,7 @@ export function SourceSidebar({
       <aside
         className={cn(
           "flex shrink-0 flex-col border-r bg-background transition-all duration-200",
-          collapsed ? "w-12" : "w-72"
+          collapsed ? "w-12" : "w-96"
         )}
       >
         {/* Collapsed state: just the toggle button */}
