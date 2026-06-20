@@ -27,7 +27,7 @@ function SourceIcon({ type, className }: { type: string; className?: string }) {
 
 function CitationHoverContent({ citation }: { citation: CitationChunk }) {
   return (
-    <div className="flex w-72 flex-col overflow-hidden rounded-md border bg-popover shadow-md">
+    <div className="bg-popover flex w-72 flex-col overflow-hidden rounded-md border shadow-md">
       {/* Section 1: Source name */}
       <div className="flex items-center gap-2 px-3 py-2.5">
         <SourceIcon type={citation.sourceType} className="size-4 shrink-0" />
@@ -37,7 +37,7 @@ function CitationHoverContent({ citation }: { citation: CitationChunk }) {
       <Separator />
 
       {/* Section 2: Content */}
-      <div className="max-h-56 overflow-y-auto px-3 py-2.5 text-xs leading-relaxed text-muted-foreground">
+      <div className="text-muted-foreground max-h-56 overflow-y-auto px-3 py-2.5 text-xs leading-relaxed">
         <Markdown remarkPlugins={[remarkGfm]}>{citation.content}</Markdown>
       </div>
 
@@ -45,7 +45,7 @@ function CitationHoverContent({ citation }: { citation: CitationChunk }) {
 
       {/* Section 3: Quelle anzeigen */}
       <button
-        className="flex items-center gap-1.5 px-3 py-2 text-xs text-primary hover:underline"
+        className="text-primary flex items-center gap-1.5 px-3 py-2 text-xs hover:underline"
         onClick={() => openSourceView(citation)}
       >
         <ExternalLink className="size-3" />
@@ -55,10 +55,64 @@ function CitationHoverContent({ citation }: { citation: CitationChunk }) {
   )
 }
 
-// ─── Citation badge row with expand/collapse ──────────────────────────────────
+// ─── Shared expand/collapse logic ─────────────────────────────────────────────
 
 const VISIBLE_THRESHOLD = 2
 
+function ExpandCollapseButton({
+  expanded,
+  onToggle,
+  inline,
+}: {
+  expanded: boolean
+  onToggle: () => void
+  inline?: boolean
+}) {
+  return (
+    <button
+      onClick={onToggle}
+      className={cn(
+        "bg-muted text-muted-foreground hover:bg-muted/80 items-center rounded-full text-[10px] font-medium",
+        inline ? "inline-flex h-[18px] px-1.5 align-middle" : "inline-flex h-[18px] px-1.5"
+      )}
+    >
+      {expanded ? "⟨ ⟩" : "···"}
+    </button>
+  )
+}
+
+// Inline group for consecutive [1][2][3] inside message text
+function InlineCitationGroup({
+  badges,
+  activeCitation,
+  onCiteClick,
+}: {
+  badges: CitationChunk[]
+  activeCitation: CitationChunk | null
+  onCiteClick: (c: CitationChunk) => void
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const hasMore = badges.length > VISIBLE_THRESHOLD
+  const visible = hasMore && !expanded ? badges.slice(0, VISIBLE_THRESHOLD) : badges
+
+  return (
+    <span className="inline-flex items-center gap-0.5 align-middle">
+      {visible.map((c) => (
+        <CitationBadge
+          key={c.id}
+          citation={c}
+          active={activeCitation?.id === c.id}
+          onClick={() => onCiteClick(c)}
+        />
+      ))}
+      {hasMore && (
+        <ExpandCollapseButton expanded={expanded} onToggle={() => setExpanded((p) => !p)} inline />
+      )}
+    </span>
+  )
+}
+
+// Footer row below assistant message
 function CitationBadgeRow({
   citations,
   activeCitation,
@@ -74,7 +128,7 @@ function CitationBadgeRow({
 
   return (
     <div className="flex flex-wrap items-center gap-1">
-      <span className="text-xs text-muted-foreground">Quellen:</span>
+      <span className="text-muted-foreground text-xs">Quellen:</span>
       {visible.map((c) => (
         <CitationBadge
           key={c.id}
@@ -84,12 +138,7 @@ function CitationBadgeRow({
         />
       ))}
       {hasMore && (
-        <button
-          onClick={() => setExpanded((p) => !p)}
-          className="inline-flex h-[18px] items-center rounded-full bg-muted px-1.5 text-[10px] font-medium text-muted-foreground hover:bg-muted/80"
-        >
-          {expanded ? "⟨ ⟩" : `···`}
-        </button>
+        <ExpandCollapseButton expanded={expanded} onToggle={() => setExpanded((p) => !p)} />
       )}
     </div>
   )
@@ -113,10 +162,10 @@ function CitationBadge({
         <button
           onClick={onClick}
           className={cn(
-            "inline-flex size-[18px] items-center justify-center rounded-full text-[10px] font-semibold leading-none transition-colors",
+            "inline-flex size-[18px] items-center justify-center rounded-full text-[10px] leading-none font-semibold transition-colors",
             active
               ? "bg-primary text-primary-foreground"
-              : "bg-primary/10 text-primary hover:bg-primary/20",
+              : "bg-primary/10 text-primary hover:bg-primary/20"
           )}
           title={citation.sourceTitle}
         >
@@ -143,9 +192,15 @@ function AssistantContent({
   activeCitation: CitationChunk | null
   onCiteClick: (c: CitationChunk) => void
 }) {
+  // Group consecutive [N][M][K] into a single cite element with data-indices
   const processed =
     citations.length > 0
-      ? text.replace(/\[(\d+)\]/g, '<cite data-idx="$1"></cite>')
+      ? text
+          .replace(/(\[\d+\])(\s*\[\d+\])+/g, (match) => {
+            const indices = [...match.matchAll(/\[(\d+)\]/g)].map((m) => m[1])
+            return `<cite data-indices="${indices.join(",")}"></cite>`
+          })
+          .replace(/\[(\d+)\]/g, '<cite data-idx="$1"></cite>')
       : text
 
   return (
@@ -155,7 +210,24 @@ function AssistantContent({
       components={{
         cite(props) {
           const { node: _node, ...rest } = props
-          const idx = (rest as Record<string, string>)["data-idx"]
+          const attrs = rest as Record<string, string>
+
+          if (attrs["data-indices"]) {
+            const badges = attrs["data-indices"]
+              .split(",")
+              .map((i) => citations[parseInt(i) - 1])
+              .filter(Boolean) as CitationChunk[]
+            if (badges.length === 0) return null
+            return (
+              <InlineCitationGroup
+                badges={badges}
+                activeCitation={activeCitation}
+                onCiteClick={onCiteClick}
+              />
+            )
+          }
+
+          const idx = attrs["data-idx"]
           if (!idx) return null
           const citation = citations[parseInt(idx) - 1]
           if (!citation) return null
@@ -169,15 +241,27 @@ function AssistantContent({
         },
         p(props) {
           const { node: _node, children, ...rest } = props
-          return <p className="mb-3 last:mb-0" {...rest}>{children}</p>
+          return (
+            <p className="mb-3 last:mb-0" {...rest}>
+              {children}
+            </p>
+          )
         },
         ul(props) {
           const { node: _node, children, ...rest } = props
-          return <ul className="mb-3 list-disc space-y-1 pl-5 last:mb-0" {...rest}>{children}</ul>
+          return (
+            <ul className="mb-3 list-disc space-y-1 pl-5 last:mb-0" {...rest}>
+              {children}
+            </ul>
+          )
         },
         ol(props) {
           const { node: _node, children, ...rest } = props
-          return <ol className="mb-3 list-decimal space-y-1 pl-5 last:mb-0" {...rest}>{children}</ol>
+          return (
+            <ol className="mb-3 list-decimal space-y-1 pl-5 last:mb-0" {...rest}>
+              {children}
+            </ol>
+          )
         },
         li(props) {
           const { node: _node, children, ...rest } = props
@@ -185,20 +269,35 @@ function AssistantContent({
         },
         h1(props) {
           const { node: _node, children, ...rest } = props
-          return <h1 className="mb-2 mt-4 text-base font-semibold first:mt-0" {...rest}>{children}</h1>
+          return (
+            <h1 className="mt-4 mb-2 text-base font-semibold first:mt-0" {...rest}>
+              {children}
+            </h1>
+          )
         },
         h2(props) {
           const { node: _node, children, ...rest } = props
-          return <h2 className="mb-2 mt-4 text-sm font-semibold first:mt-0" {...rest}>{children}</h2>
+          return (
+            <h2 className="mt-4 mb-2 text-sm font-semibold first:mt-0" {...rest}>
+              {children}
+            </h2>
+          )
         },
         h3(props) {
           const { node: _node, children, ...rest } = props
-          return <h3 className="mb-1 mt-3 text-sm font-medium first:mt-0" {...rest}>{children}</h3>
+          return (
+            <h3 className="mt-3 mb-1 text-sm font-medium first:mt-0" {...rest}>
+              {children}
+            </h3>
+          )
         },
         blockquote(props) {
           const { node: _node, children, ...rest } = props
           return (
-            <blockquote className="mb-3 border-l-2 border-muted-foreground/30 pl-4 text-muted-foreground last:mb-0" {...rest}>
+            <blockquote
+              className="border-muted-foreground/30 text-muted-foreground mb-3 border-l-2 pl-4 last:mb-0"
+              {...rest}
+            >
               {children}
             </blockquote>
           )
@@ -207,34 +306,62 @@ function AssistantContent({
           const { node: _node, children, className, ...rest } = props
           const isBlock = Boolean(className?.startsWith("language-"))
           if (isBlock) {
-            return <code className="block overflow-x-auto rounded-md bg-muted px-3 py-2 text-xs" {...rest}>{children}</code>
+            return (
+              <code
+                className="bg-muted block overflow-x-auto rounded-md px-3 py-2 text-xs"
+                {...rest}
+              >
+                {children}
+              </code>
+            )
           }
-          return <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs" {...rest}>{children}</code>
+          return (
+            <code className="bg-muted rounded px-1 py-0.5 font-mono text-xs" {...rest}>
+              {children}
+            </code>
+          )
         },
         pre(props) {
           const { node: _node, children, ...rest } = props
-          return <pre className="mb-3 last:mb-0" {...rest}>{children}</pre>
+          return (
+            <pre className="mb-3 last:mb-0" {...rest}>
+              {children}
+            </pre>
+          )
         },
         strong(props) {
           const { node: _node, children, ...rest } = props
-          return <strong className="font-semibold" {...rest}>{children}</strong>
+          return (
+            <strong className="font-semibold" {...rest}>
+              {children}
+            </strong>
+          )
         },
         em(props) {
           const { node: _node, children, ...rest } = props
-          return <em className="italic" {...rest}>{children}</em>
+          return (
+            <em className="italic" {...rest}>
+              {children}
+            </em>
+          )
         },
         a(props) {
           const { node: _node, children, href, ...rest } = props
           return (
-            <a href={href} target="_blank" rel="noopener noreferrer"
-              className="text-primary underline underline-offset-2 hover:no-underline" {...rest}>
+            <a
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary underline underline-offset-2 hover:no-underline"
+              {...rest}
+            >
               {children}
             </a>
           )
         },
         hr(props) {
           const { node: _node, ...rest } = props
-          return <hr className="my-4 border-border" {...rest} />
+          return <hr className="border-border my-4" {...rest} />
         },
       }}
     >
@@ -294,7 +421,7 @@ export function ChatPanel({
         <div className="flex-1 overflow-y-auto px-4 py-6">
           {messages.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
-              <p className="text-sm text-muted-foreground">
+              <p className="text-muted-foreground text-sm">
                 {readySourceCount === 0
                   ? "Füge Quellen hinzu um den Chat zu starten"
                   : "Stelle eine Frage zu deinen Quellen"}
@@ -310,7 +437,7 @@ export function ChatPanel({
                 if (msg.role === "user") {
                   return (
                     <div key={msg.id} className="flex justify-end">
-                      <div className="max-w-[80%] rounded-2xl rounded-tr-sm bg-primary px-4 py-2.5 text-sm text-primary-foreground">
+                      <div className="bg-primary text-primary-foreground max-w-[80%] rounded-2xl rounded-tr-sm px-4 py-2.5 text-sm">
                         {fullText}
                       </div>
                     </div>
@@ -341,7 +468,7 @@ export function ChatPanel({
               })}
 
               {isStreaming && messages[messages.length - 1]?.role !== "assistant" && (
-                <div className="flex items-center gap-2 text-muted-foreground">
+                <div className="text-muted-foreground flex items-center gap-2">
                   <Loader2 className="size-4 animate-spin" />
                   <span className="text-sm">Denkt nach…</span>
                 </div>
@@ -355,16 +482,16 @@ export function ChatPanel({
         {/* Input */}
         <div className="shrink-0 border-t p-4">
           <form onSubmit={handleSubmit}>
-            <div className="flex items-center gap-2 rounded-xl border bg-muted/40 px-4 py-3">
+            <div className="bg-muted/40 flex items-center gap-2 rounded-xl border px-4 py-3">
               <input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder={readySourceCount === 0 ? "Keine Quellen verfügbar…" : "Text eingeben…"}
                 disabled={readySourceCount === 0 || isStreaming}
-                className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                className="placeholder:text-muted-foreground flex-1 bg-transparent text-sm outline-none disabled:cursor-not-allowed disabled:opacity-50"
               />
               <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">
+                <span className="text-muted-foreground text-xs">
                   {readySourceCount} {readySourceCount === 1 ? "Quelle" : "Quellen"}
                 </span>
                 <Button
@@ -381,7 +508,7 @@ export function ChatPanel({
                 </Button>
               </div>
             </div>
-            <p className="mt-2 text-center text-xs text-muted-foreground/60">
+            <p className="text-muted-foreground/60 mt-2 text-center text-xs">
               YannBookLM kann Fehler machen. Überprüfe wichtige Informationen.
             </p>
           </form>

@@ -36,7 +36,7 @@ import { FaYoutube } from "react-icons/fa"
 import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { deleteSource, renameSource } from "@/lib/actions/sources"
-import { onSourceView } from "@/lib/source-view-event"
+import { onSourceView, openSourceView } from "@/lib/source-view-event"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import type { Source } from "@/db/schema"
@@ -183,6 +183,7 @@ export function SourceSidebar({
   const [renameValue, setRenameValue] = useState("")
   const [isPending, startTransition] = useTransition()
   const [activeChunk, setActiveChunk] = useState<CitationChunk | null>(null)
+  const [loadingSourceId, setLoadingSourceId] = useState<string | null>(null)
 
   const processingSource = initialSources.find(
     (s) => s.status === "processing" || s.status === "pending"
@@ -278,6 +279,23 @@ export function SourceSidebar({
       toast.success("Quelle entfernt")
       window.location.reload()
     })
+  }
+
+  async function handleSourceClick(source: Source) {
+    if (source.status !== "ready") return
+    setLoadingSourceId(source.id)
+    try {
+      const res = await fetch(`/api/sources/${source.id}/preview`)
+      if (!res.ok) throw new Error()
+      const chunk = (await res.json()) as CitationChunk
+      setCollapsed(false)
+      setActiveChunk(chunk)
+      openSourceView(chunk)
+    } catch {
+      toast.error("Vorschau konnte nicht geladen werden")
+    } finally {
+      setLoadingSourceId(null)
+    }
   }
 
   const filtered = initialSources.filter(
@@ -382,10 +400,19 @@ export function SourceSidebar({
                       key={source.id}
                       className="group flex items-center gap-2 rounded-md px-2 py-2 hover:bg-muted"
                     >
-                      <SourceTypeIcon type={source.type} status={source.status} />
-                      <span className="flex-1 truncate text-sm" title={source.title}>
+                      {loadingSourceId === source.id ? (
+                        <Loader2 className="size-4 shrink-0 animate-spin text-muted-foreground" />
+                      ) : (
+                        <SourceTypeIcon type={source.type} status={source.status} />
+                      )}
+                      <button
+                        className="min-w-0 flex-1 truncate text-left text-sm disabled:cursor-default disabled:opacity-50"
+                        title={source.title}
+                        disabled={source.status !== "ready" || loadingSourceId !== null}
+                        onClick={() => handleSourceClick(source)}
+                      >
                         {source.title}
-                      </span>
+                      </button>
                       <DropdownMenu>
                         <DropdownMenuTrigger
                           className="shrink-0 rounded p-0.5 opacity-0 transition-opacity hover:bg-muted-foreground/20 group-hover:opacity-100 focus:opacity-100"
