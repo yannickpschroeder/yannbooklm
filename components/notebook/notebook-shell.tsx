@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { cn } from "@/lib/utils"
 import { StudioSidebar } from "./studio-sidebar"
 import type { Note, StudioOutput } from "@/db/schema"
 
@@ -20,7 +19,7 @@ export function NotebookShell({
 
   return (
     <>
-      <main className={cn("flex overflow-hidden transition-all duration-200", noteMode ? "w-0" : "flex-1")}>
+      <main className="flex flex-1 overflow-hidden">
         {children}
       </main>
       <StudioSidebar
