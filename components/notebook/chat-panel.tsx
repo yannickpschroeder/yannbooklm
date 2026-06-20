@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react"
 import { useChat } from "@ai-sdk/react"
 import { DefaultChatTransport, isTextUIPart } from "ai"
-import { ArrowRight, FileText, Globe, Loader2, ExternalLink } from "lucide-react"
+import { ArrowRight, ChevronLeft, ChevronRight, FileText, Globe, Loader2, ExternalLink } from "lucide-react"
 import { FaYoutube } from "react-icons/fa"
 import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
@@ -82,6 +82,7 @@ function ExpandCollapseButton({
 }
 
 // Inline group for consecutive [1][2][3] inside message text
+// ≥3 badges: show first + ···; expanded: first + ›‹ trigger + remaining to the right
 function InlineCitationGroup({
   badges,
   activeCitation,
@@ -92,22 +93,39 @@ function InlineCitationGroup({
   onCiteClick: (c: CitationChunk) => void
 }) {
   const [expanded, setExpanded] = useState(false)
-  const hasMore = badges.length > VISIBLE_THRESHOLD
-  const visible = hasMore && !expanded ? badges.slice(0, VISIBLE_THRESHOLD) : badges
+  const collapsible = badges.length >= 3
 
   return (
     <span className="inline-flex items-center gap-0.5 align-middle">
-      {visible.map((c) => (
-        <CitationBadge
-          key={c.id}
-          citation={c}
-          active={activeCitation?.id === c.id}
-          onClick={() => onCiteClick(c)}
-        />
-      ))}
-      {hasMore && (
-        <ExpandCollapseButton expanded={expanded} onToggle={() => setExpanded((p) => !p)} inline />
+      <CitationBadge
+        citation={badges[0]}
+        active={activeCitation?.id === badges[0].id}
+        onClick={() => onCiteClick(badges[0])}
+      />
+      {collapsible && (
+        <button
+          onClick={() => setExpanded((p) => !p)}
+          className="inline-flex h-[18px] items-center rounded-full bg-muted px-1 align-middle text-[10px] font-medium text-muted-foreground hover:bg-muted/80"
+        >
+          {expanded ? (
+            <>
+              <ChevronRight className="size-2.5" />
+              <ChevronLeft className="size-2.5" />
+            </>
+          ) : (
+            "···"
+          )}
+        </button>
       )}
+      {(expanded || !collapsible) &&
+        badges.slice(1).map((c) => (
+          <CitationBadge
+            key={c.id}
+            citation={c}
+            active={activeCitation?.id === c.id}
+            onClick={() => onCiteClick(c)}
+          />
+        ))}
     </span>
   )
 }
