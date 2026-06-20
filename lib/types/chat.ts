@@ -5,6 +5,7 @@ export type CitationChunk = {
   id: string
   sourceTitle: string
   sourceType: string
+  sourceSummary?: string | null
   url: string | null
   positionStart: number | null
   pageNumber: number | null

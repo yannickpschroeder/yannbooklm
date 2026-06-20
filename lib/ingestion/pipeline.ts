@@ -9,11 +9,37 @@ import { scrapeUrl } from "./web"
 import { fetchYoutubeContent } from "./youtube"
 import { buildParentChunks, buildChildChunks } from "./chunking"
 import { embedBatch } from "@/lib/ai/voyage"
+import { generateText } from "ai"
+import { claude } from "@/lib/ai/anthropic"
 import type { PdfPage } from "./pdf"
 import type { ParentChunk, ChildChunk } from "./chunking"
 
 const EMBED_BATCH_SIZE = 16
 const INTER_BATCH_DELAY_MS = 300
+// First ~6 000 chars of text is enough for a concise summary
+const SUMMARY_TEXT_LIMIT = 6000
+
+async function generateSummary(pages: PdfPage[]): Promise<string> {
+  const text = pages
+    .map((p) => p.content.replace(/!\[.*?\]\([^)]+\)/g, ""))
+    .join("\n\n")
+    .slice(0, SUMMARY_TEXT_LIMIT)
+
+  const { text: summary } = await generateText({
+    model: claude,
+    messages: [
+      {
+        role: "user",
+        content:
+          `Summarize the following document in 3-5 German sentences. ` +
+          `Describe what the document is about, its structure, and the key topics it covers. ` +
+          `Be specific about the content — avoid generic phrases like "the document provides information about".\n\n` +
+          `Document:\n${text}`,
+      },
+    ],
+  })
+  return summary.trim()
+}
 
 export async function ingestUrl(sourceId: string, url: string): Promise<void> {
   try {
@@ -21,7 +47,8 @@ export async function ingestUrl(sourceId: string, url: string): Promise<void> {
     const { title, pages } = await scrapeUrl(url)
     await db.update(sources).set({ title }).where(eq(sources.id, sourceId))
     await ingestPages(sourceId, pages)
-    await db.update(sources).set({ status: "ready" }).where(eq(sources.id, sourceId))
+    const summary = await generateSummary(pages)
+    await db.update(sources).set({ status: "ready", summary }).where(eq(sources.id, sourceId))
   } catch (err) {
     console.error(`[ingest] URL ingestion failed for source ${sourceId}:`, err)
     await db.delete(sources).where(eq(sources.id, sourceId))
@@ -34,7 +61,9 @@ export async function ingestYoutube(sourceId: string, url: string): Promise<void
     const { title, parentChunks: parents, childChunks: children } = await fetchYoutubeContent(url)
     await db.update(sources).set({ title }).where(eq(sources.id, sourceId))
     await ingestPrebuiltChunks(sourceId, parents, children)
-    await db.update(sources).set({ status: "ready" }).where(eq(sources.id, sourceId))
+    const pages = parents.map((p) => ({ pageNumber: p.pageNumber, content: p.content }))
+    const summary = await generateSummary(pages)
+    await db.update(sources).set({ status: "ready", summary }).where(eq(sources.id, sourceId))
   } catch (err) {
     console.error(`[ingest] YouTube ingestion failed for source ${sourceId}:`, err)
     await db.delete(sources).where(eq(sources.id, sourceId))
@@ -46,7 +75,8 @@ export async function ingestPdf(sourceId: string, s3Key: string): Promise<void> 
     await db.update(sources).set({ status: "processing" }).where(eq(sources.id, sourceId))
     const { pages } = await parsePdf(s3Key, sourceId)
     await ingestPages(sourceId, pages)
-    await db.update(sources).set({ status: "ready" }).where(eq(sources.id, sourceId))
+    const summary = await generateSummary(pages)
+    await db.update(sources).set({ status: "ready", summary }).where(eq(sources.id, sourceId))
   } catch (err) {
     console.error(`[ingest] PDF ingestion failed for source ${sourceId}:`, err)
     await Promise.allSettled([

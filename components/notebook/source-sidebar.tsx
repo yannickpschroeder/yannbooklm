@@ -15,6 +15,9 @@ import {
   X,
   ExternalLink,
   ChevronLeft,
+  ChevronDown,
+  ChevronUp,
+  Sparkles,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -92,6 +95,7 @@ function SourceDetailPanel({
   onClose: () => void
 }) {
   const link = buildSourceLink(chunk)
+  const [summaryOpen, setSummaryOpen] = useState(false)
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -107,6 +111,29 @@ function SourceDetailPanel({
       </div>
 
       <Separator />
+
+      {/* Quellenübersicht dropdown */}
+      {chunk.sourceSummary && (
+        <div className="shrink-0 border-b">
+          <button
+            onClick={() => setSummaryOpen((p) => !p)}
+            className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm hover:bg-muted/50"
+          >
+            <Sparkles className="size-3.5 shrink-0 text-primary" />
+            <span className="flex-1 font-medium">Quellenübersicht</span>
+            {summaryOpen ? (
+              <ChevronUp className="size-3.5 shrink-0 text-muted-foreground" />
+            ) : (
+              <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
+            )}
+          </button>
+          {summaryOpen && (
+            <div className="border-t bg-muted/30 px-4 py-3 text-sm leading-relaxed text-foreground">
+              <Markdown remarkPlugins={[remarkGfm]}>{chunk.sourceSummary}</Markdown>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Content — scrollable, Markdown */}
       <div className="flex-1 overflow-y-auto px-4 py-4 text-sm leading-relaxed text-foreground">

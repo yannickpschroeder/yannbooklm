@@ -19,6 +19,7 @@ export async function GET(
       title: sources.title,
       type: sources.type,
       url: sources.url,
+      summary: sources.summary,
       notebookId: sources.notebookId,
     })
     .from(sources)
@@ -46,6 +47,7 @@ export async function GET(
     index: 0,
     sourceTitle: source.title,
     sourceType: source.type,
+    sourceSummary: source.summary,
     url: source.url,
     positionStart: chunks[0]?.positionStart ?? null,
     pageNumber: chunks[0]?.pageNumber ?? null,
