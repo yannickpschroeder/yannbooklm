@@ -30,21 +30,18 @@ async function tryDeleteNotebook(page: Page, name: string) {
   await page.getByRole("button", { name: "Ja, löschen" }).click()
 }
 
-async function ingestPdf(page: Page, pdfPath: string, titleFragment: string) {
+async function ingestPdf(page: Page, pdfPath: string) {
   await page.getByRole("button", { name: "Quellen hinzufügen" }).click()
   const [fileChooser] = await Promise.all([
     page.waitForEvent("filechooser"),
     page.getByRole("button", { name: "Dateien hochladen" }).click(),
   ])
   await fileChooser.setFiles(pdfPath)
-  await expect(
-    page.locator("aside").getByText(titleFragment, { exact: false })
-  ).toBeVisible({ timeout: 10 * 60 * 1000 })
-  // Page reloads automatically on success — wait for modal to disappear
-  // then wait for full hydration before returning
-  // Page reloads automatically on success — wait for the new page to fully load
-  await page.waitForLoadState("load")
-  await expect(page.getByPlaceholder("Text eingeben…")).toBeVisible({ timeout: 15_000 })
+  // The page reloads automatically when the source becomes ready.
+  // readySourceCount > 0 only after that reload — so this is the true readiness signal.
+  await expect(page.getByPlaceholder("Text eingeben…")).toBeVisible({
+    timeout: 10 * 60 * 1000,
+  })
 }
 
 // @local
@@ -61,7 +58,7 @@ test.describe("RAG Chat @local", () => {
   test("Frage stellen und Antwort mit Zitat-Badge erhalten", async ({ page }) => {
     notebookName = "E2E Chat Test"
     await createNotebook(page, notebookName)
-    await ingestPdf(page, KRETA_PDF, "kreta")
+    await ingestPdf(page, KRETA_PDF)
 
     const input = page.getByPlaceholder("Text eingeben…")
     await input.fill("Was sind die wichtigsten Sehenswürdigkeiten auf Kreta?")
@@ -76,7 +73,7 @@ test.describe("RAG Chat @local", () => {
   test("Zitat-Badge klicken öffnet Quellendetail", async ({ page }) => {
     notebookName = "E2E Citation Test"
     await createNotebook(page, notebookName)
-    await ingestPdf(page, KRETA_PDF, "kreta")
+    await ingestPdf(page, KRETA_PDF)
 
     const input = page.getByPlaceholder("Text eingeben…")
     await input.fill("Was sind die wichtigsten Sehenswürdigkeiten auf Kreta?")
@@ -92,7 +89,7 @@ test.describe("RAG Chat @local", () => {
   test("Quelle in Sidebar klicken öffnet Detailansicht", async ({ page }) => {
     notebookName = "E2E Source Detail Test"
     await createNotebook(page, notebookName)
-    await ingestPdf(page, KRETA_PDF, "kreta")
+    await ingestPdf(page, KRETA_PDF)
 
     const sourceButton = page.locator("aside button").filter({ hasText: /kreta/i }).first()
     await sourceButton.click()
@@ -104,7 +101,7 @@ test.describe("RAG Chat @local", () => {
   test("Topic-Badge klicken sendet Frage an Chat", async ({ page }) => {
     notebookName = "E2E Topic Badge Test"
     await createNotebook(page, notebookName)
-    await ingestPdf(page, KRETA_PDF, "kreta")
+    await ingestPdf(page, KRETA_PDF)
 
     const sourceButton = page.locator("aside button").filter({ hasText: /kreta/i }).first()
     await sourceButton.click()
