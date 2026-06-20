@@ -15,7 +15,7 @@ export default defineConfig({
   },
   timeout: 10 * 60 * 1000, // 10 min per test (ingestion can be slow)
   expect: {
-    timeout: 10 * 60 * 1000,
+    timeout: 30 * 1000,
   },
   projects: [
     {

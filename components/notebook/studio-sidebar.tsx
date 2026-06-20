@@ -352,6 +352,7 @@ export function StudioSidebar({
               <Button
                 variant="ghost"
                 size="icon"
+                aria-label={t("deleteNote")}
                 className="size-7 shrink-0 text-muted-foreground hover:text-destructive"
                 onClick={() => handleDeleteNote(activeNote.id)}
               >
