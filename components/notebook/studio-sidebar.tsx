@@ -6,7 +6,6 @@ import {
   PanelRightClose,
   PanelRightOpen,
   ChevronRight,
-  Plus,
   ChevronLeft,
   MoreHorizontal,
   StickyNote,
@@ -223,92 +222,100 @@ export function StudioSidebar({
           </div>
         ) : (
           /* ── List view ── */
-          <div className="flex flex-1 flex-col overflow-y-auto">
-            {/* Studio tools grid */}
-            <div className="grid grid-cols-2 gap-2 p-3">
-              {STUDIO_TOOLS.map((tool) => {
-                const Icon = tool.icon
-                return (
-                  <button
-                    key={tool.id}
-                    className="flex items-center justify-between rounded-lg border bg-card p-3 text-left transition-colors hover:bg-muted"
-                    onClick={() => devTodo(tool.id)}
-                  >
-                    <div className="flex items-center gap-2">
-                      <Icon className="size-4 text-muted-foreground" />
-                      <span className="text-xs font-medium leading-tight">{tStudio(tool.labelKey)}</span>
-                    </div>
-                    <div className="flex shrink-0 flex-col items-end gap-1">
-                      {tool.badge && (
-                        <span className="rounded bg-primary/10 px-1 py-0.5 text-[10px] font-medium text-primary">
-                          {tool.badge}
-                        </span>
-                      )}
-                      <ChevronRight className="size-3 text-muted-foreground" />
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
-
-            <Separator />
-
-            {/* Unified outputs section */}
-            <div className="flex flex-col gap-1 p-3">
-              <div className="flex items-center justify-between pb-1">
-                <span className="text-xs font-medium text-muted-foreground">{t("title")}</span>
-                <Button variant="ghost" size="icon" className="size-6" onClick={handleNewNote} title={t("newNote")}>
-                  <Plus className="size-3.5" />
-                </Button>
+          <div className="relative flex flex-1 flex-col overflow-hidden">
+            <div className="flex flex-1 flex-col overflow-y-auto pb-16">
+              {/* Studio tools grid */}
+              <div className="grid grid-cols-2 gap-2 p-3">
+                {STUDIO_TOOLS.map((tool) => {
+                  const Icon = tool.icon
+                  return (
+                    <button
+                      key={tool.id}
+                      className="flex items-center justify-between rounded-lg border bg-card p-3 text-left transition-colors hover:bg-muted"
+                      onClick={() => devTodo(tool.id)}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Icon className="size-4 text-muted-foreground" />
+                        <span className="text-xs font-medium leading-tight">{tStudio(tool.labelKey)}</span>
+                      </div>
+                      <div className="flex shrink-0 flex-col items-end gap-1">
+                        {tool.badge && (
+                          <span className="rounded bg-primary/10 px-1 py-0.5 text-[10px] font-medium text-primary">
+                            {tool.badge}
+                          </span>
+                        )}
+                        <ChevronRight className="size-3 text-muted-foreground" />
+                      </div>
+                    </button>
+                  )
+                })}
               </div>
 
-              {outputs.length === 0 ? (
-                <p className="py-4 text-center text-xs text-muted-foreground">{t("noNotes")}</p>
-              ) : (
-                <ul className="space-y-0.5">
-                  {outputs.map((item) => (
-                    <li key={item.id} className="group flex items-center gap-2 rounded-md px-2 py-2 hover:bg-muted">
-                      {outputIcon(item.kind)}
-                      <button
-                        className="min-w-0 flex-1 text-left"
-                        onClick={() => handleOutputClick(item)}
-                      >
-                        <p className="truncate text-sm">
-                          {item.title || <span className="italic text-muted-foreground">{t("placeholder")}</span>}
-                        </p>
-                        <p className="text-xs text-muted-foreground">{relativeTime(item.createdAt)}</p>
-                      </button>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger className="shrink-0 rounded p-0.5 opacity-0 transition-opacity hover:bg-muted-foreground/20 group-hover:opacity-100 focus:opacity-100">
-                          <MoreHorizontal className="size-4 text-muted-foreground" />
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => devTodo("setAsSource")}>
-                            {t("setAsSource")}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => devTodo("setAllAsSource")}>
-                            {t("setAllAsSource")}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => devTodo("exportToDocs")}>
-                            {t("exportToDocs")}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => devTodo("exportToSheets")}>
-                            {t("exportToSheets")}
-                          </DropdownMenuItem>
-                          {item.kind === "note" && (
-                            <DropdownMenuItem
-                              className="text-destructive focus:text-destructive"
-                              onClick={() => handleDeleteNote(item.id)}
-                            >
-                              {t("deleteNote")}
+              <Separator />
+
+              {/* Unified outputs section */}
+              <div className="flex flex-col gap-1 p-3">
+                <span className="pb-1 text-xs font-medium text-muted-foreground">{t("outputsTitle")}</span>
+
+                {outputs.length === 0 ? (
+                  <p className="py-4 text-center text-xs text-muted-foreground">{t("noOutputs")}</p>
+                ) : (
+                  <ul className="space-y-0.5">
+                    {outputs.map((item) => (
+                      <li key={item.id} className="group flex items-center gap-2 rounded-md px-2 py-2 hover:bg-muted">
+                        {outputIcon(item.kind)}
+                        <button
+                          className="min-w-0 flex-1 text-left"
+                          onClick={() => handleOutputClick(item)}
+                        >
+                          <p className="truncate text-sm">
+                            {item.title || <span className="italic text-muted-foreground">{t("placeholder")}</span>}
+                          </p>
+                          <p className="text-xs text-muted-foreground">{relativeTime(item.createdAt)}</p>
+                        </button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger className="shrink-0 rounded p-0.5 opacity-0 transition-opacity hover:bg-muted-foreground/20 group-hover:opacity-100 focus:opacity-100">
+                            <MoreHorizontal className="size-4 text-muted-foreground" />
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => devTodo("setAsSource")}>
+                              {t("setAsSource")}
                             </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </li>
-                  ))}
-                </ul>
-              )}
+                            <DropdownMenuItem onClick={() => devTodo("setAllAsSource")}>
+                              {t("setAllAsSource")}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => devTodo("exportToDocs")}>
+                              {t("exportToDocs")}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => devTodo("exportToSheets")}>
+                              {t("exportToSheets")}
+                            </DropdownMenuItem>
+                            {item.kind === "note" && (
+                              <DropdownMenuItem
+                                className="text-destructive focus:text-destructive"
+                                onClick={() => handleDeleteNote(item.id)}
+                              >
+                                {t("deleteNote")}
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+
+            {/* FAB */}
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
+              <button
+                onClick={handleNewNote}
+                className="flex items-center gap-2 rounded-full border bg-card px-4 py-2 text-sm font-medium shadow-md transition-colors hover:bg-muted"
+              >
+                <StickyNote className="size-4 text-muted-foreground" />
+                {t("addNote")}
+              </button>
             </div>
           </div>
         )
