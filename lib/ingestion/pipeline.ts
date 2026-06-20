@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto"
 import { db } from "@/db"
 import { sources, parentChunks, childChunks } from "@/db/schema"
 import { eq } from "drizzle-orm"
@@ -9,7 +10,8 @@ import { buildParentChunks, buildChildChunks } from "./chunking"
 import { embedBatch } from "@/lib/ai/voyage"
 import type { PdfPage } from "./pdf"
 
-const EMBED_BATCH_SIZE = 128
+const EMBED_BATCH_SIZE = 16
+const INTER_BATCH_DELAY_MS = 300
 
 export async function ingestUrl(sourceId: string, url: string): Promise<void> {
   try {
@@ -42,39 +44,53 @@ export async function ingestPdf(sourceId: string, s3Key: string): Promise<void> 
 async function ingestPages(sourceId: string, pages: PdfPage[]): Promise<void> {
   const parentChunkData = buildParentChunks(pages)
 
-  const insertedParents = await db
-    .insert(parentChunks)
-    .values(
-      parentChunkData.map((p) => ({
-        sourceId,
-        content: p.content,
-        pageNumber: p.pageNumber,
-        positionStart: p.positionStart,
-        positionEnd: p.positionEnd,
-      }))
-    )
-    .returning({ id: parentChunks.id })
+  // Assign IDs client-side so child chunks can reference them directly
+  const parentsWithIds = parentChunkData.map((p) => ({
+    id: randomUUID() as string,
+    sourceId,
+    content: p.content,
+    pageNumber: p.pageNumber,
+    positionStart: p.positionStart,
+    positionEnd: p.positionEnd,
+  }))
+
+  console.log(`[ingest] Inserting ${parentsWithIds.length} parent chunks for source ${sourceId}`)
+  await db.insert(parentChunks).values(parentsWithIds)
+  console.log(`[ingest] Parent chunks inserted, IDs: ${parentsWithIds.map((p) => p.id).join(", ")}`)
 
   const allChildren = parentChunkData.flatMap((parent, i) =>
     buildChildChunks(parent, i).map((child) => ({
       ...child,
-      parentId: insertedParents[i].id,
+      parentId: parentsWithIds[i].id,
     }))
   )
 
+  console.log(`[ingest] ${allChildren.length} child chunks to embed, unique parentIds: ${[...new Set(allChildren.map((c) => c.parentId))].length}`)
+
+  const totalBatches = Math.ceil(allChildren.length / EMBED_BATCH_SIZE)
+
   for (let i = 0; i < allChildren.length; i += EMBED_BATCH_SIZE) {
+    if (i > 0) await new Promise((r) => setTimeout(r, INTER_BATCH_DELAY_MS))
     const batch = allChildren.slice(i, i + EMBED_BATCH_SIZE)
     const embeddings = await embedBatch(batch.map((c) => c.content))
 
-    await db.insert(childChunks).values(
-      batch.map((child, j) => ({
-        sourceId,
-        parentChunkId: child.parentId,
-        content: child.content,
-        embedding: embeddings[j],
-        pageNumber: child.pageNumber,
-        positionStart: child.positionStart,
-      }))
-    )
+    const batchIndex = Math.floor(i / EMBED_BATCH_SIZE)
+    const progress = Math.round(((batchIndex + 1) / totalBatches) * 100)
+    const batchParentIds = [...new Set(batch.map((c) => c.parentId))]
+    console.log(`[ingest] Batch ${batchIndex + 1}/${totalBatches}: inserting ${batch.length} children, parentIds: ${batchParentIds.join(", ")}`)
+
+    await Promise.all([
+      db.insert(childChunks).values(
+        batch.map((child, j) => ({
+          sourceId,
+          parentChunkId: child.parentId,
+          content: child.content,
+          embedding: embeddings[j],
+          pageNumber: child.pageNumber,
+          positionStart: child.positionStart,
+        }))
+      ),
+      db.update(sources).set({ embedProgress: progress }).where(eq(sources.id, sourceId)),
+    ])
   }
 }

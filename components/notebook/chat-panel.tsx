@@ -3,7 +3,7 @@
 import { SlidersHorizontal, MoreHorizontal, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
-export function ChatPanel() {
+export function ChatPanel({ readySourceCount }: { readySourceCount: number }) {
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       {/* Header */}
@@ -22,7 +22,9 @@ export function ChatPanel() {
       {/* Messages area */}
       <div className="flex flex-1 flex-col items-center justify-center gap-3 overflow-y-auto px-6 py-8 text-center">
         <p className="text-sm text-muted-foreground">
-          Stelle eine Frage zu deinen Quellen
+          {readySourceCount === 0
+            ? "Füge Quellen hinzu um den Chat zu starten"
+            : "Stelle eine Frage zu deinen Quellen"}
         </p>
         <p className="text-xs text-muted-foreground/60">
           Der Chat wird in einem zukünftigen Issue implementiert.
@@ -38,7 +40,9 @@ export function ChatPanel() {
             disabled
           />
           <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">0 Quellen</span>
+            <span className="text-xs text-muted-foreground">
+              {readySourceCount} {readySourceCount === 1 ? "Quelle" : "Quellen"}
+            </span>
             <Button size="icon" className="size-7 rounded-full" disabled>
               <ArrowRight className="size-4" />
             </Button>

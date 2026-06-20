@@ -19,6 +19,7 @@ export async function GET(
       status: sources.status,
       title: sources.title,
       notebookId: sources.notebookId,
+      embedProgress: sources.embedProgress,
     })
     .from(sources)
     .innerJoin(notebooks, eq(sources.notebookId, notebooks.id))
@@ -27,5 +28,5 @@ export async function GET(
 
   if (!source) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
-  return NextResponse.json({ status: source.status, title: source.title })
+  return NextResponse.json({ status: source.status, title: source.title, embedProgress: source.embedProgress })
 }

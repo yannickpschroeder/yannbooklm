@@ -1,18 +1,6 @@
 "use client"
 
 import { useCallback, useRef, useState } from "react"
-
-async function pollStatus(sourceId: string): Promise<void> {
-  for (let i = 0; i < 120; i++) {
-    await new Promise((r) => setTimeout(r, 2000))
-    const res = await fetch(`/api/sources/${sourceId}/status`)
-    if (!res.ok) continue
-    const { status } = (await res.json()) as { status: string }
-    if (status === "ready") return
-    if (status === "error") throw new Error("Verarbeitung fehlgeschlagen")
-  }
-  throw new Error("Timeout beim Verarbeiten")
-}
 import { toast } from "sonner"
 import {
   Upload,
@@ -22,15 +10,69 @@ import {
   ChevronDown,
   Link,
   ArrowLeft,
+  X,
 } from "lucide-react"
 import { FaYoutube } from "react-icons/fa"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { deleteSource } from "@/lib/actions/sources"
+import { devTodo } from "@/lib/dev-todo"
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024
 
 type View = "pick" | "pdf-uploading" | "url-input" | "url-processing"
+
+async function pollStatus(
+  sourceId: string,
+  onProgress?: (pct: number) => void,
+  signal?: AbortSignal
+): Promise<void> {
+  for (let i = 0; i < 300; i++) {
+    if (signal?.aborted) throw new DOMException("Abgebrochen", "AbortError")
+    await new Promise<void>((resolve, reject) => {
+      const t = setTimeout(resolve, 2000)
+      signal?.addEventListener("abort", () => { clearTimeout(t); reject(new DOMException("Abgebrochen", "AbortError")) }, { once: true })
+    })
+    if (signal?.aborted) throw new DOMException("Abgebrochen", "AbortError")
+    const res = await fetch(`/api/sources/${sourceId}/status`, { signal })
+    if (res.status === 404) throw new Error("Verarbeitung fehlgeschlagen")
+    if (!res.ok) continue
+    const { status, embedProgress } = (await res.json()) as { status: string; embedProgress: number }
+    if (embedProgress > 0) onProgress?.(embedProgress)
+    if (status === "ready") return
+    if (status === "error") throw new Error("Verarbeitung fehlgeschlagen")
+  }
+  throw new Error("Timeout beim Verarbeiten")
+}
+
+async function uploadWithProgress(
+  file: File,
+  presignedUrl: string,
+  onProgress: (pct: number) => void,
+  signal?: AbortSignal
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    signal?.addEventListener("abort", () => { xhr.abort(); reject(new DOMException("Abgebrochen", "AbortError")) }, { once: true })
+    xhr.open("PUT", presignedUrl)
+    xhr.setRequestHeader("Content-Type", file.type)
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100))
+    }
+    xhr.onload = () => (xhr.status < 300 ? resolve() : reject(new Error(`S3 ${xhr.status}`)))
+    xhr.onerror = () => reject(new Error("Upload fehlgeschlagen"))
+    xhr.send(file)
+  })
+}
+
+async function computeSha256(file: File): Promise<string> {
+  const buffer = await file.arrayBuffer()
+  const hashBuffer = await crypto.subtle.digest("SHA-256", buffer)
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("")
+}
 
 export function AddSourceModal({
   notebookId,
@@ -38,28 +80,58 @@ export function AddSourceModal({
   onOpenChange,
   sourceCount,
   sourceLimit,
+  onMinimize,
 }: {
   notebookId: string
   open: boolean
   onOpenChange: (open: boolean) => void
   sourceCount: number
   sourceLimit?: number
+  onMinimize?: (sourceId: string, title: string) => void
 }) {
   const limit = sourceLimit ?? 50
   const [view, setView] = useState<View>("pick")
   const [progress, setProgress] = useState(0)
+  const [embedProgress, setEmbedProgress] = useState(0)
   const [url, setUrl] = useState("")
   const fileRef = useRef<HTMLInputElement>(null)
+
+  // Track current upload so cancel/minimize can reference it
+  const abortControllerRef = useRef<AbortController | null>(null)
+  const currentSourceIdRef = useRef<string | null>(null)
+  const currentTitleRef = useRef<string>("")
+  const minimizingRef = useRef(false)
+  const [sourceCreated, setSourceCreated] = useState(false)
 
   function reset() {
     setView("pick")
     setProgress(0)
+    setEmbedProgress(0)
     setUrl("")
+    setSourceCreated(false)
+    currentSourceIdRef.current = null
+    currentTitleRef.current = ""
+    minimizingRef.current = false
   }
 
-  function handleClose(o: boolean) {
-    if (!o) reset()
-    onOpenChange(o)
+  const isUploading = view === "pdf-uploading" && progress < 100
+  const isEmbedding =
+    (view === "pdf-uploading" && progress >= 100) || view === "url-processing"
+  const isProcessing = isUploading || isEmbedding
+  const canMinimize = isEmbedding && sourceCreated
+
+  async function handleCancel() {
+    minimizingRef.current = false
+    abortControllerRef.current?.abort()
+  }
+
+  function handleMinimize() {
+    if (!currentSourceIdRef.current) return
+    minimizingRef.current = true
+    abortControllerRef.current?.abort()
+    onMinimize?.(currentSourceIdRef.current, currentTitleRef.current)
+    reset()
+    onOpenChange(false)
   }
 
   // ── PDF ──────────────────────────────────────────────────────────────────────
@@ -74,7 +146,6 @@ export function AddSourceModal({
       return
     }
 
-    // Compute SHA-256 and check for duplicate before starting upload
     const fileHash = await computeSha256(file)
     const checkRes = await fetch(
       `/api/sources/check?notebookId=${encodeURIComponent(notebookId)}&hash=${encodeURIComponent(fileHash)}`
@@ -87,14 +158,22 @@ export function AddSourceModal({
       }
     }
 
+    const title = file.name.replace(/\.pdf$/i, "")
+    currentTitleRef.current = title
+
+    const ac = new AbortController()
+    abortControllerRef.current = ac
+
     setView("pdf-uploading")
     setProgress(0)
+    setEmbedProgress(0)
 
     try {
       const presignRes = await fetch("/api/sources/presign", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ filename: file.name, contentType: file.type }),
+        signal: ac.signal,
       })
       if (!presignRes.ok) throw new Error("Presign fehlgeschlagen")
       const { presignedUrl, s3Key } = (await presignRes.json()) as {
@@ -102,30 +181,41 @@ export function AddSourceModal({
         s3Key: string
       }
 
-      await uploadWithProgress(file, presignedUrl, setProgress)
+      await uploadWithProgress(file, presignedUrl, setProgress, ac.signal)
 
       const sourceRes = await fetch("/api/sources", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          notebookId,
-          type: "pdf",
-          title: file.name.replace(/\.pdf$/i, ""),
-          s3Key,
-          fileHash,
-        }),
+        body: JSON.stringify({ notebookId, type: "pdf", title, s3Key, fileHash }),
+        signal: ac.signal,
       })
       if (!sourceRes.ok) throw new Error("Quelle konnte nicht erstellt werden")
       const { sourceId } = (await sourceRes.json()) as { sourceId: string }
+      currentSourceIdRef.current = sourceId
+      setSourceCreated(true)
 
-      await pollStatus(sourceId)
+      await pollStatus(sourceId, setEmbedProgress, ac.signal)
       toast.success("Datei wurde hinzugefügt")
-      handleClose(false)
+      reset()
+      onOpenChange(false)
       window.location.reload()
     } catch (err) {
+      const isAbort = err instanceof DOMException && err.name === "AbortError"
+      if (isAbort && minimizingRef.current) {
+        // Minimized — sidebar takes over, don't clean up
+        return
+      }
+      if (isAbort) {
+        // User cancelled — clean up source if it was created
+        if (currentSourceIdRef.current) {
+          await deleteSource(currentSourceIdRef.current, notebookId).catch(() => undefined)
+        }
+        reset()
+        return
+      }
       console.error(err)
       toast.error(err instanceof Error ? err.message : "Upload fehlgeschlagen")
-      setView("pick")
+      reset()
     }
   }
 
@@ -163,7 +253,6 @@ export function AddSourceModal({
       return
     }
 
-    // Check if URL was already added to this notebook
     const checkRes = await fetch(
       `/api/sources/check?notebookId=${encodeURIComponent(notebookId)}&url=${encodeURIComponent(url)}`
     )
@@ -175,35 +264,56 @@ export function AddSourceModal({
       }
     }
 
+    currentTitleRef.current = parsed.hostname
+
+    const ac = new AbortController()
+    abortControllerRef.current = ac
+
     setView("url-processing")
+    setEmbedProgress(0)
+
     try {
       const res = await fetch("/api/sources", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ notebookId, type: "url", url }),
+        signal: ac.signal,
       })
       if (!res.ok) {
         const { error } = (await res.json()) as { error?: string }
         throw new Error(error ?? "Unbekannter Fehler")
       }
       const { sourceId } = (await res.json()) as { sourceId: string }
-      await pollStatus(sourceId)
+      currentSourceIdRef.current = sourceId
+      setSourceCreated(true)
+
+      await pollStatus(sourceId, setEmbedProgress, ac.signal)
       toast.success("Webseite wurde hinzugefügt")
-      handleClose(false)
+      reset()
+      onOpenChange(false)
       window.location.reload()
     } catch (err) {
+      const isAbort = err instanceof DOMException && err.name === "AbortError"
+      if (isAbort && minimizingRef.current) return
+      if (isAbort) {
+        if (currentSourceIdRef.current) {
+          await deleteSource(currentSourceIdRef.current, notebookId).catch(() => undefined)
+        }
+        reset()
+        setView("url-input")
+        return
+      }
       console.error(err)
       toast.error(err instanceof Error ? err.message : "Fehler beim Hinzufügen")
+      reset()
       setView("url-input")
     }
   }
 
-  const isProcessing = view === "pdf-uploading" || view === "url-processing"
-
   return (
-    <Dialog open={open} onOpenChange={isProcessing ? undefined : handleClose}>
-      <DialogContent className="sm:max-w-3xl p-6">
-        <DialogHeader>
+    <Dialog open={open} onOpenChange={isProcessing ? undefined : (o) => { if (!o) reset(); onOpenChange(o) }}>
+      <DialogContent className="sm:max-w-3xl p-6" showCloseButton={false}>
+        <DialogHeader className="flex-row items-start justify-between">
           <DialogTitle className="text-xl font-semibold leading-snug">
             {view === "url-input" || view === "url-processing" ? (
               "Webseite hinzufügen"
@@ -217,18 +327,28 @@ export function AddSourceModal({
               </>
             )}
           </DialogTitle>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="shrink-0 -mt-1"
+            onClick={canMinimize ? handleMinimize : () => { reset(); onOpenChange(false) }}
+            disabled={isUploading && !canMinimize}
+            title={canMinimize ? "Minimieren" : "Schließen"}
+          >
+            <ChevronDown className="size-4" />
+          </Button>
         </DialogHeader>
 
         {/* ── Picker ───────────────────────────────────────────────────────── */}
         {view === "pick" && (
           <div className="space-y-4">
-            {/* Web search bar (placeholder – not yet functional) */}
             <div className="flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2">
               <Search className="size-4 shrink-0 text-muted-foreground" />
               <input
                 placeholder="Im Web nach neuen Quellen suchen"
                 className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
                 disabled
+                onClick={() => devTodo("Web-Suche")}
               />
               <div className="flex items-center gap-1">
                 <button
@@ -242,7 +362,6 @@ export function AddSourceModal({
               </div>
             </div>
 
-            {/* Drop zone */}
             <label
               className="flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed px-6 py-8 text-center transition-colors hover:border-primary/50 hover:bg-muted/50"
               onDragOver={(e) => e.preventDefault()}
@@ -264,7 +383,6 @@ export function AddSourceModal({
               />
             </label>
 
-            {/* Action buttons */}
             <div className="grid grid-cols-4 gap-3">
               <Button
                 variant="outline"
@@ -290,6 +408,7 @@ export function AddSourceModal({
                 className="flex-col gap-1.5 h-auto py-4 whitespace-normal text-center"
                 disabled
                 title="Noch nicht verfügbar"
+                onClick={() => devTodo("Drive")}
               >
                 <span className="text-xl leading-none shrink-0">▲</span>
                 <span className="text-xs leading-tight">Drive</span>
@@ -299,13 +418,13 @@ export function AddSourceModal({
                 className="flex-col gap-1.5 h-auto py-4 whitespace-normal text-center"
                 disabled
                 title="Noch nicht verfügbar"
+                onClick={() => devTodo("Kopierter Text")}
               >
                 <span className="text-xl leading-none shrink-0">📋</span>
                 <span className="text-xs leading-tight">Kopierter Text</span>
               </Button>
             </div>
 
-            {/* Progress indicator */}
             <div className="space-y-1">
               <div className="flex justify-end">
                 <span className="text-xs text-muted-foreground">
@@ -327,14 +446,38 @@ export function AddSourceModal({
           <div className="flex flex-col items-center gap-4 py-6">
             <Loader2 className="size-10 animate-spin text-primary" />
             <div className="w-full space-y-2 text-center">
-              <p className="text-sm font-medium">
-                {progress < 100 ? "Datei wird hochgeladen…" : "Wird verarbeitet…"}
-              </p>
+              <div className="flex items-center justify-between text-sm">
+                <span className="font-medium">
+                  {progress < 100
+                    ? "Hochladen…"
+                    : embedProgress > 0
+                      ? "Einlesen & Indizieren…"
+                      : "Verarbeiten…"}
+                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground">
+                    {progress < 100 ? `${progress}%` : embedProgress > 0 ? `${embedProgress}%` : ""}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleCancel}
+                    className="rounded p-0.5 text-muted-foreground hover:text-foreground"
+                    title="Abbrechen"
+                  >
+                    <X className="size-4" />
+                  </button>
+                </div>
+              </div>
               <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
                 {progress < 100 ? (
                   <div
-                    className="h-full bg-primary transition-all"
+                    className="h-full bg-primary transition-all duration-300"
                     style={{ width: `${progress}%` }}
+                  />
+                ) : embedProgress > 0 ? (
+                  <div
+                    className="h-full bg-primary transition-all duration-500"
+                    style={{ width: `${embedProgress}%` }}
                   />
                 ) : (
                   <div className="h-full w-full animate-pulse bg-primary" />
@@ -392,44 +535,39 @@ export function AddSourceModal({
         {view === "url-processing" && (
           <div className="flex flex-col items-center gap-4 py-6">
             <Loader2 className="size-10 animate-spin text-primary" />
-            <div className="space-y-1 text-center">
-              <p className="text-sm font-medium">Webseite wird verarbeitet…</p>
-              <p className="text-xs text-muted-foreground">
-                Inhalt wird gelesen und indiziert
-              </p>
-            </div>
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-              <div className="h-full w-full animate-pulse bg-primary" />
+            <div className="w-full space-y-2 text-center">
+              <div className="flex items-center justify-between text-sm">
+                <span className="font-medium">
+                  {embedProgress > 0 ? "Einlesen & Indizieren…" : "Webseite wird verarbeitet…"}
+                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground">
+                    {embedProgress > 0 ? `${embedProgress}%` : ""}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleCancel}
+                    className="rounded p-0.5 text-muted-foreground hover:text-foreground"
+                    title="Abbrechen"
+                  >
+                    <X className="size-4" />
+                  </button>
+                </div>
+              </div>
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                {embedProgress > 0 ? (
+                  <div
+                    className="h-full bg-primary transition-all duration-500"
+                    style={{ width: `${embedProgress}%` }}
+                  />
+                ) : (
+                  <div className="h-full w-full animate-pulse bg-primary" />
+                )}
+              </div>
             </div>
           </div>
         )}
       </DialogContent>
     </Dialog>
   )
-}
-
-async function uploadWithProgress(
-  file: File,
-  presignedUrl: string,
-  onProgress: (pct: number) => void
-): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest()
-    xhr.open("PUT", presignedUrl)
-    xhr.setRequestHeader("Content-Type", file.type)
-    xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100))
-    }
-    xhr.onload = () => (xhr.status < 300 ? resolve() : reject(new Error(`S3 ${xhr.status}`)))
-    xhr.onerror = () => reject(new Error("Upload fehlgeschlagen"))
-    xhr.send(file)
-  })
-}
-
-async function computeSha256(file: File): Promise<string> {
-  const buffer = await file.arrayBuffer()
-  const hashBuffer = await crypto.subtle.digest("SHA-256", buffer)
-  return Array.from(new Uint8Array(hashBuffer))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("")
 }

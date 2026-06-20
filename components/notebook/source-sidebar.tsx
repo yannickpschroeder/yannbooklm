@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useEffect, useRef, useState, useTransition } from "react"
 import {
   Plus,
   Search,
@@ -12,6 +12,7 @@ import {
   MoreHorizontal,
   Trash2,
   Pencil,
+  X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -32,6 +33,12 @@ import { deleteSource, renameSource } from "@/lib/actions/sources"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import type { Source } from "@/db/schema"
+
+type ActiveUpload = {
+  sourceId: string
+  title: string
+  embedPct: number
+}
 
 function SourceIcon({ type, status }: { type: Source["type"]; status: Source["status"] }) {
   if (status === "processing" || status === "pending") {
@@ -54,6 +61,66 @@ export function SourceSidebar({
   const [renameTarget, setRenameTarget] = useState<Source | null>(null)
   const [renameValue, setRenameValue] = useState("")
   const [isPending, startTransition] = useTransition()
+  const processingSource = initialSources.find(
+    (s) => s.status === "processing" || s.status === "pending"
+  )
+  const [activeUpload, setActiveUpload] = useState<ActiveUpload | null>(
+    processingSource
+      ? { sourceId: processingSource.id, title: processingSource.title, embedPct: processingSource.embedProgress }
+      : null
+  )
+
+  // Poll while an upload is minimized to sidebar
+  const activeSourceIdRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (!activeUpload) return
+    activeSourceIdRef.current = activeUpload.sourceId
+
+    let cancelled = false
+    async function poll() {
+      for (let i = 0; i < 300; i++) {
+        if (cancelled) return
+        await new Promise((r) => setTimeout(r, 2000))
+        if (cancelled) return
+
+        try {
+          const res = await fetch(`/api/sources/${activeSourceIdRef.current}/status`)
+          if (res.status === 404 || !res.ok) {
+            if (!cancelled) { setActiveUpload(null); toast.error("Verarbeitung fehlgeschlagen") }
+            return
+          }
+          const { status, embedProgress } = (await res.json()) as { status: string; embedProgress: number }
+          if (!cancelled) setActiveUpload((prev) => prev ? { ...prev, embedPct: embedProgress } : null)
+          if (status === "ready") {
+            if (!cancelled) { setActiveUpload(null); window.location.reload() }
+            return
+          }
+          if (status === "error") {
+            if (!cancelled) { setActiveUpload(null); toast.error("Verarbeitung fehlgeschlagen") }
+            return
+          }
+        } catch {
+          // network hiccup — continue polling
+        }
+      }
+      if (!cancelled) { setActiveUpload(null); toast.error("Timeout beim Verarbeiten") }
+    }
+
+    poll()
+    return () => { cancelled = true }
+  }, [activeUpload?.sourceId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  function handleMinimize(sourceId: string, title: string) {
+    setActiveUpload({ sourceId, title, embedPct: 0 })
+    setModalOpen(false)
+  }
+
+  function handleCancelActiveUpload() {
+    if (!activeUpload) return
+    const { sourceId } = activeUpload
+    setActiveUpload(null)
+    deleteSource(sourceId, notebookId).catch(() => undefined)
+  }
 
   function handleRenameOpen(source: Source) {
     setRenameTarget(source)
@@ -79,8 +146,11 @@ export function SourceSidebar({
     })
   }
 
-  const filtered = initialSources.filter((s) =>
-    s.title.toLowerCase().includes(search.toLowerCase())
+  const filtered = initialSources.filter(
+    (s) =>
+      s.status !== "processing" &&
+      s.status !== "pending" &&
+      s.title.toLowerCase().includes(search.toLowerCase())
   )
 
   return (
@@ -110,7 +180,6 @@ export function SourceSidebar({
 
         {!collapsed && (
           <div className="flex flex-col gap-2 overflow-y-auto p-3">
-            {/* Add source button */}
             <Button
               variant="outline"
               size="sm"
@@ -121,7 +190,6 @@ export function SourceSidebar({
               Quellen hinzufügen
             </Button>
 
-            {/* Search */}
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
               <Input
@@ -132,16 +200,49 @@ export function SourceSidebar({
               />
             </div>
 
-            {/* Source list */}
-            {filtered.length === 0 ? (
-              <p className="py-6 text-center text-xs text-muted-foreground">
-                {initialSources.length === 0
-                  ? "Noch keine Quellen vorhanden"
-                  : "Keine Treffer"}
-              </p>
-            ) : (
-              <ul className="space-y-0.5">
-                {filtered.map((source) => (
+            <ul className="space-y-0.5">
+              {/* Active upload item (minimized from modal) */}
+              {activeUpload && (
+                <li className="flex items-center gap-2 rounded-md bg-muted/50 px-2 py-2">
+                  <Loader2 className="size-4 shrink-0 animate-spin text-primary" />
+                  <div className="min-w-0 flex-1">
+                    <span className="block truncate text-sm" title={activeUpload.title}>
+                      {activeUpload.title}
+                    </span>
+                    <div className="mt-1 flex items-center gap-1.5">
+                      <div className="h-1 flex-1 overflow-hidden rounded-full bg-muted">
+                        {activeUpload.embedPct > 0 ? (
+                          <div
+                            className="h-full bg-primary transition-all duration-500"
+                            style={{ width: `${activeUpload.embedPct}%` }}
+                          />
+                        ) : (
+                          <div className="h-full w-1/3 animate-pulse bg-primary" />
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleCancelActiveUpload}
+                        className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground"
+                        title="Abbrechen"
+                      >
+                        <X className="size-3" />
+                      </button>
+                    </div>
+                  </div>
+                </li>
+              )}
+
+              {filtered.length === 0 && !activeUpload ? (
+                <li>
+                  <p className="py-6 text-center text-xs text-muted-foreground">
+                    {initialSources.length === 0
+                      ? "Noch keine Quellen vorhanden"
+                      : "Keine Treffer"}
+                  </p>
+                </li>
+              ) : (
+                filtered.map((source) => (
                   <li
                     key={source.id}
                     className="group flex items-center gap-2 rounded-md px-2 py-2 hover:bg-muted"
@@ -172,9 +273,9 @@ export function SourceSidebar({
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </li>
-                ))}
-              </ul>
-            )}
+                ))
+              )}
+            </ul>
           </div>
         )}
       </aside>
@@ -184,6 +285,7 @@ export function SourceSidebar({
         open={modalOpen}
         onOpenChange={setModalOpen}
         sourceCount={initialSources.length}
+        onMinimize={handleMinimize}
       />
 
       <Dialog open={!!renameTarget} onOpenChange={(o) => !o && setRenameTarget(null)}>

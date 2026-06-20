@@ -4,6 +4,7 @@ import { useState } from "react"
 import { PanelRightClose, PanelRightOpen, ChevronRight, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { devTodo } from "@/lib/dev-todo"
 import {
   FaMicrophone,
   FaProjectDiagram,
@@ -82,6 +83,7 @@ export function StudioSidebar() {
                 <button
                   key={tool.id}
                   className="flex items-center justify-between rounded-lg border bg-card p-3 text-left transition-colors hover:bg-muted"
+                  onClick={() => devTodo(tool.label)}
                 >
                   <div className="flex items-center gap-2">
                     <Icon className="size-4 text-muted-foreground" />
@@ -105,7 +107,12 @@ export function StudioSidebar() {
 
           {/* Note button */}
           <div className="border-t p-3">
-            <Button variant="outline" size="sm" className="w-full gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full gap-2"
+              onClick={() => devTodo("Notiz hinzufügen")}
+            >
               <Plus className="size-4" />
               Notiz hinzufügen
             </Button>

@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth"
 import { NextResponse } from "next/server"
 import { db } from "@/db"
 import { sources, notebooks } from "@/db/schema"
-import { and, eq, or } from "drizzle-orm"
+import { and, eq } from "drizzle-orm"
 
 export async function GET(req: Request) {
   const session = await auth()
@@ -32,7 +32,7 @@ export async function GET(req: Request) {
   const [existing] = await db
     .select({ id: sources.id, title: sources.title })
     .from(sources)
-    .where(and(condition, or(eq(sources.status, "ready"), eq(sources.status, "processing"))))
+    .where(and(condition, eq(sources.status, "ready")))
     .limit(1)
 
   return NextResponse.json({ duplicate: existing ?? null })

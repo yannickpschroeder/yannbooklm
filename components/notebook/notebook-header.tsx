@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl"
 import { signOut, useSession } from "next-auth/react"
 import { BookOpen, LogOut, Share2, Settings } from "lucide-react"
+import { devTodo } from "@/lib/dev-todo"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import {
@@ -40,11 +41,21 @@ export function NotebookHeader({ notebookName }: { notebookName: string }) {
 
       {/* Right: actions + avatar */}
       <div className="flex items-center gap-1">
-        <Button variant="ghost" size="sm" className="gap-1.5 text-xs">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="gap-1.5 text-xs"
+          onClick={() => devTodo("Freigeben")}
+        >
           <Share2 className="size-3.5" />
           Freigeben
         </Button>
-        <Button variant="ghost" size="sm" className="gap-1.5 text-xs">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="gap-1.5 text-xs"
+          onClick={() => devTodo("Einstellungen")}
+        >
           <Settings className="size-3.5" />
           Einstellungen
         </Button>
