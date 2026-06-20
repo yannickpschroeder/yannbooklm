@@ -19,7 +19,7 @@ export default async function NotebookPage({
     db
       .select({ id: sources.id })
       .from(sources)
-      .where(and(eq(sources.notebookId, notebookId), eq(sources.status, "ready"))),
+      .where(and(eq(sources.notebookId, notebookId), eq(sources.status, "ready"), eq(sources.enabled, true))),
 
     db
       .select({
