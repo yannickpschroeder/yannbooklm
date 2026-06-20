@@ -33,7 +33,9 @@ async function generateSummary(pages: PdfPage[]): Promise<string> {
         content:
           `Summarize the following document in 3-5 German sentences. ` +
           `Describe what the document is about, its structure, and the key topics it covers. ` +
-          `Be specific about the content — avoid generic phrases like "the document provides information about".\n\n` +
+          `Be specific about the content — avoid generic phrases like "the document provides information about". ` +
+          `Use Markdown **bold** to highlight 4-8 key terms or topic phrases within the text. ` +
+          `Output only the summary text — no headings, no bullet points.\n\n` +
           `Document:\n${text}`,
       },
     ],
