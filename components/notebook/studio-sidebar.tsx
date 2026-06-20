@@ -10,6 +10,10 @@ import {
   MoreHorizontal,
   StickyNote,
   Trash2,
+  BookmarkPlus,
+  Bookmarks,
+  FileText,
+  Table2,
 } from "lucide-react"
 import {
   FaMicrophone,
@@ -441,16 +445,24 @@ export function StudioSidebar({
                             <MoreHorizontal className="size-4 text-muted-foreground" />
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => item.note && setNoteAsSource(item.note.title, item.note.content)} disabled={!item.note}>{t("setAsSource")}</DropdownMenuItem>
-                            <DropdownMenuItem onClick={handleSetAllAsSource}>{t("setAllAsSource")}</DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => item.note && handleExportToDocs(item.note)} disabled={!item.note}>{t("exportToDocs")}</DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => item.note && handleExportToSheets(item.note)} disabled={!item.note}>{t("exportToSheets")}</DropdownMenuItem>
+                            <DropdownMenuItem className="whitespace-nowrap" onClick={() => item.note && setNoteAsSource(item.note.title, item.note.content)} disabled={!item.note}>
+                              <BookmarkPlus className="size-4" />{t("setAsSource")}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="whitespace-nowrap" onClick={handleSetAllAsSource}>
+                              <Bookmarks className="size-4" />{t("setAllAsSource")}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="whitespace-nowrap" onClick={() => item.note && handleExportToDocs(item.note)} disabled={!item.note}>
+                              <FileText className="size-4" />{t("exportToDocs")}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="whitespace-nowrap" onClick={() => item.note && handleExportToSheets(item.note)} disabled={!item.note}>
+                              <Table2 className="size-4" />{t("exportToSheets")}
+                            </DropdownMenuItem>
                             {item.kind === "note" && (
                               <DropdownMenuItem
-                                className="text-destructive focus:text-destructive"
+                                className="whitespace-nowrap text-destructive focus:text-destructive"
                                 onClick={() => handleDeleteNote(item.id)}
                               >
-                                {t("deleteNote")}
+                                <Trash2 className="size-4" />{t("deleteNote")}
                               </DropdownMenuItem>
                             )}
                           </DropdownMenuContent>
