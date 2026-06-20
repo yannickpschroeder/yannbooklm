@@ -40,12 +40,8 @@ async function ingestPdf(page: Page, pdfPath: string, titleFragment: string) {
   await expect(
     page.locator("aside").getByText(titleFragment, { exact: false })
   ).toBeVisible({ timeout: 10 * 60 * 1000 })
-  // Close modal so the chat input is reachable
-  const closeBtn = page.getByRole("dialog").getByRole("button", { name: "Schließen" })
-  if (await closeBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
-    await closeBtn.click()
-  }
-  await expect(page.getByRole("dialog")).not.toBeVisible({ timeout: 5_000 })
+  // Page reloads automatically on success — wait for modal to disappear
+  await expect(page.getByRole("dialog")).not.toBeVisible({ timeout: 10_000 })
 }
 
 // @local
