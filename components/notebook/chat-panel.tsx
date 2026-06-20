@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react"
 import { useChat } from "@ai-sdk/react"
 import { DefaultChatTransport, isTextUIPart } from "ai"
-import { ArrowRight, ChevronLeft, ChevronRight, FileText, Globe, Loader2, ExternalLink } from "lucide-react"
+import { ArrowRight, ChevronsRightLeft, FileText, Globe, Loader2, ExternalLink } from "lucide-react"
 import { FaYoutube } from "react-icons/fa"
 import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
@@ -108,10 +108,7 @@ function InlineCitationGroup({
           className="inline-flex h-[18px] items-center rounded-full bg-muted px-1 align-middle text-[10px] font-medium text-muted-foreground hover:bg-muted/80"
         >
           {expanded ? (
-            <>
-              <ChevronRight className="size-2.5" />
-              <ChevronLeft className="size-2.5" />
-            </>
+            <ChevronsRightLeft className="size-3" />
           ) : (
             "···"
           )}
