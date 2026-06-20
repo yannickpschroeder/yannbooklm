@@ -278,7 +278,7 @@ export function StudioSidebar({
             />
 
             {/* Footer */}
-            <div className="shrink-0 border-t p-3">
+            <div className="flex shrink-0 items-center justify-between border-t p-3">
               <Button
                 variant="outline"
                 size="sm"
@@ -287,6 +287,17 @@ export function StudioSidebar({
               >
                 {t("setAsSource")}
               </Button>
+              {(() => {
+                const len = editContent.trim().length
+                const belowMin = len < 5
+                return (
+                  <span className={`text-xs ${belowMin ? "text-destructive" : "text-muted-foreground"}`}>
+                    {belowMin
+                      ? `${len}/5`
+                      : `${len.toLocaleString()}/10.000`}
+                  </span>
+                )
+              })()}
             </div>
           </div>
         ) : (
