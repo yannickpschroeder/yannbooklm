@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useRef, useState } from "react"
+import { useTranslations } from "next-intl"
 import { toast } from "sonner"
 import {
   Upload,
@@ -21,7 +22,7 @@ import { devTodo } from "@/lib/dev-todo"
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024
 
-type View = "pick" | "pdf-uploading" | "url-input" | "url-processing"
+type View = "pick" | "pdf-uploading" | "url-input" | "url-processing" | "text-input"
 
 async function pollStatus(
   sourceId: string,
@@ -89,11 +90,13 @@ export function AddSourceModal({
   sourceLimit?: number
   onMinimize?: (sourceId: string, title: string) => void
 }) {
+  const t = useTranslations("sources")
   const limit = sourceLimit ?? 50
   const [view, setView] = useState<View>("pick")
   const [progress, setProgress] = useState(0)
   const [embedProgress, setEmbedProgress] = useState(0)
   const [url, setUrl] = useState("")
+  const [pastedText, setPastedText] = useState("")
   const fileRef = useRef<HTMLInputElement>(null)
 
   // Track current upload so cancel/minimize can reference it
@@ -108,6 +111,7 @@ export function AddSourceModal({
     setProgress(0)
     setEmbedProgress(0)
     setUrl("")
+    setPastedText("")
     setSourceCreated(false)
     currentSourceIdRef.current = null
     currentTitleRef.current = ""
@@ -315,7 +319,9 @@ export function AddSourceModal({
       <DialogContent className="sm:max-w-3xl p-6" showCloseButton={false}>
         <DialogHeader className="flex-row items-start justify-between">
           <DialogTitle className="text-xl font-semibold leading-snug">
-            {view === "url-input" || view === "url-processing" ? (
+            {view === "text-input" ? (
+              t("pastedTextTitle")
+            ) : view === "url-input" || view === "url-processing" ? (
               "Webseite hinzufügen"
             ) : (
               <>
@@ -416,9 +422,7 @@ export function AddSourceModal({
               <Button
                 variant="outline"
                 className="flex-col gap-1.5 h-auto py-4 whitespace-normal text-center"
-                disabled
-                title="Noch nicht verfügbar"
-                onClick={() => devTodo("Kopierter Text")}
+                onClick={() => setView("text-input")}
               >
                 <span className="text-xl leading-none shrink-0">📋</span>
                 <span className="text-xs leading-tight">Kopierter Text</span>
@@ -529,6 +533,36 @@ export function AddSourceModal({
               </Button>
             </div>
           </form>
+        )}
+
+        {/* ── Pasted text input ────────────────────────────────────────────── */}
+        {view === "text-input" && (
+          <div className="space-y-4">
+            <button
+              type="button"
+              onClick={() => setView("pick")}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeft className="size-3.5" />
+              Zurück
+            </button>
+            <p className="text-sm text-muted-foreground">{t("pastedTextDescription")}</p>
+            <textarea
+              value={pastedText}
+              onChange={(e) => setPastedText(e.target.value)}
+              placeholder={t("pastedTextPlaceholder")}
+              autoFocus
+              className="min-h-48 w-full resize-y rounded-md border bg-transparent p-3 text-sm outline-none placeholder:text-muted-foreground focus:ring-1 focus:ring-ring"
+            />
+            <div className="flex justify-end">
+              <Button
+                onClick={() => devTodo("Kopierter Text einfügen")}
+                disabled={!pastedText.trim()}
+              >
+                {t("insert")}
+              </Button>
+            </div>
+          </div>
         )}
 
         {/* ── URL processing ───────────────────────────────────────────────── */}
