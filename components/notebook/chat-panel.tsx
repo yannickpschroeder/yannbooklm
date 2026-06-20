@@ -3,16 +3,59 @@
 import { useState, useRef, useEffect } from "react"
 import { useChat } from "@ai-sdk/react"
 import { DefaultChatTransport, isTextUIPart } from "ai"
-import { ArrowRight, X, ExternalLink, FileText, Globe, Loader2 } from "lucide-react"
+import { ArrowRight, FileText, Globe, Loader2, ExternalLink } from "lucide-react"
 import { FaYoutube } from "react-icons/fa"
 import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import rehypeRaw from "rehype-raw"
 import { Button } from "@/components/ui/button"
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
+import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
+import { openSourceView } from "@/lib/source-view-event"
 import type { ChatMessage, CitationChunk } from "@/lib/types/chat"
 
-// ─── Citation badge ────────────────────────────────────────────────────────────
+// ─── Source icon helper ────────────────────────────────────────────────────────
+
+function SourceIcon({ type, className }: { type: string; className?: string }) {
+  if (type === "youtube") return <FaYoutube className={cn("text-red-500", className)} />
+  if (type === "url") return <Globe className={cn("text-blue-400", className)} />
+  return <FileText className={cn("text-red-400", className)} />
+}
+
+// ─── Citation hover card ───────────────────────────────────────────────────────
+
+function CitationHoverContent({ citation }: { citation: CitationChunk }) {
+  return (
+    <div className="flex w-72 flex-col overflow-hidden rounded-md border bg-popover shadow-md">
+      {/* Section 1: Source name */}
+      <div className="flex items-center gap-2 px-3 py-2.5">
+        <SourceIcon type={citation.sourceType} className="size-4 shrink-0" />
+        <span className="truncate text-sm font-medium">{citation.sourceTitle}</span>
+      </div>
+
+      <Separator />
+
+      {/* Section 2: Content */}
+      <div className="max-h-56 overflow-y-auto px-3 py-2.5 text-xs leading-relaxed text-muted-foreground">
+        <Markdown remarkPlugins={[remarkGfm]}>{citation.content}</Markdown>
+      </div>
+
+      <Separator />
+
+      {/* Section 3: Quelle anzeigen */}
+      <button
+        className="flex items-center gap-1.5 px-3 py-2 text-xs text-primary hover:underline"
+        onClick={() => openSourceView(citation)}
+      >
+        <ExternalLink className="size-3" />
+        Quelle anzeigen
+      </button>
+    </div>
+  )
+}
+
+// ─── Citation badge with hover card ───────────────────────────────────────────
 
 function CitationBadge({
   citation,
@@ -24,18 +67,26 @@ function CitationBadge({
   onClick: () => void
 }) {
   return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "inline-flex size-[18px] items-center justify-center rounded-full text-[10px] font-semibold leading-none transition-colors",
-        active
-          ? "bg-primary text-primary-foreground"
-          : "bg-primary/10 text-primary hover:bg-primary/20",
-      )}
-      title={citation.sourceTitle}
-    >
-      {citation.index}
-    </button>
+    <HoverCard>
+      {/* render as span so base-ui can attach hover handlers without wrapping a button in an <a> */}
+      <HoverCardTrigger render={<span className="inline-flex" />} delay={300} closeDelay={100}>
+        <button
+          onClick={onClick}
+          className={cn(
+            "inline-flex size-[18px] items-center justify-center rounded-full text-[10px] font-semibold leading-none transition-colors",
+            active
+              ? "bg-primary text-primary-foreground"
+              : "bg-primary/10 text-primary hover:bg-primary/20",
+          )}
+          title={citation.sourceTitle}
+        >
+          {citation.index}
+        </button>
+      </HoverCardTrigger>
+      <HoverCardContent side="top" align="center" className="w-auto p-0">
+        <CitationHoverContent citation={citation} />
+      </HoverCardContent>
+    </HoverCard>
   )
 }
 
@@ -52,8 +103,6 @@ function AssistantContent({
   activeCitation: CitationChunk | null
   onCiteClick: (c: CitationChunk) => void
 }) {
-  // Only inject citation markup when we have metadata to back it up;
-  // otherwise [N] stays as plain text so it doesn't silently disappear.
   const processed =
     citations.length > 0
       ? text.replace(/\[(\d+)\]/g, '<cite data-idx="$1"></cite>')
@@ -64,7 +113,6 @@ function AssistantContent({
       remarkPlugins={[remarkGfm]}
       rehypePlugins={[rehypeRaw]}
       components={{
-        // Inline citation badge
         cite(props) {
           const { node: _node, ...rest } = props
           const idx = (rest as Record<string, string>)["data-idx"]
@@ -79,7 +127,6 @@ function AssistantContent({
             />
           )
         },
-        // Markdown element styling
         p(props) {
           const { node: _node, children, ...rest } = props
           return <p className="mb-3 last:mb-0" {...rest}>{children}</p>
@@ -111,10 +158,7 @@ function AssistantContent({
         blockquote(props) {
           const { node: _node, children, ...rest } = props
           return (
-            <blockquote
-              className="mb-3 border-l-2 border-muted-foreground/30 pl-4 text-muted-foreground last:mb-0"
-              {...rest}
-            >
+            <blockquote className="mb-3 border-l-2 border-muted-foreground/30 pl-4 text-muted-foreground last:mb-0" {...rest}>
               {children}
             </blockquote>
           )
@@ -123,15 +167,9 @@ function AssistantContent({
           const { node: _node, children, className, ...rest } = props
           const isBlock = Boolean(className?.startsWith("language-"))
           if (isBlock) {
-            return (
-              <code className="block overflow-x-auto rounded-md bg-muted px-3 py-2 text-xs" {...rest}>
-                {children}
-              </code>
-            )
+            return <code className="block overflow-x-auto rounded-md bg-muted px-3 py-2 text-xs" {...rest}>{children}</code>
           }
-          return (
-            <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs" {...rest}>{children}</code>
-          )
+          return <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs" {...rest}>{children}</code>
         },
         pre(props) {
           const { node: _node, children, ...rest } = props
@@ -148,13 +186,8 @@ function AssistantContent({
         a(props) {
           const { node: _node, children, href, ...rest } = props
           return (
-            <a
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary underline underline-offset-2 hover:no-underline"
-              {...rest}
-            >
+            <a href={href} target="_blank" rel="noopener noreferrer"
+              className="text-primary underline underline-offset-2 hover:no-underline" {...rest}>
               {children}
             </a>
           )
@@ -167,91 +200,6 @@ function AssistantContent({
     >
       {processed}
     </Markdown>
-  )
-}
-
-// ─── Citation preview panel ───────────────────────────────────────────────────
-
-function CitationPreview({
-  citation,
-  onClose,
-}: {
-  citation: CitationChunk
-  onClose: () => void
-}) {
-  const sourceLink = (() => {
-    if (citation.sourceType === "youtube" && citation.url && citation.positionStart != null) {
-      const videoId = citation.url.match(/(?:youtube\.com\/watch\?.*v=|youtu\.be\/)([\w-]{11})/)?.[1]
-      if (videoId) {
-        const m = Math.floor(citation.positionStart / 60)
-        const s = String(citation.positionStart % 60).padStart(2, "0")
-        return {
-          href: `https://www.youtube.com/watch?v=${videoId}&t=${citation.positionStart}`,
-          label: `${m}:${s}`,
-        }
-      }
-    }
-    if (citation.sourceType === "pdf" && citation.pageNumber != null) {
-      return { href: null, label: `Seite ${citation.pageNumber}` }
-    }
-    if (citation.url) {
-      try {
-        return { href: citation.url, label: new URL(citation.url).hostname }
-      } catch {
-        return null
-      }
-    }
-    return null
-  })()
-
-  const SourceIcon =
-    citation.sourceType === "youtube" ? FaYoutube : citation.sourceType === "url" ? Globe : FileText
-
-  return (
-    <div className="flex h-full flex-col overflow-hidden">
-      <div className="flex h-12 shrink-0 items-center justify-between border-b px-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <SourceIcon
-            className={cn(
-              "size-4 shrink-0",
-              citation.sourceType === "youtube"
-                ? "text-red-500"
-                : citation.sourceType === "url"
-                  ? "text-blue-400"
-                  : "text-red-400",
-            )}
-          />
-          <span className="truncate text-sm font-medium" title={citation.sourceTitle}>
-            {citation.sourceTitle}
-          </span>
-        </div>
-        <Button variant="ghost" size="icon" className="size-7 shrink-0" onClick={onClose}>
-          <X className="size-4" />
-        </Button>
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-4 text-sm leading-relaxed text-muted-foreground">
-        {citation.content}
-      </div>
-
-      {sourceLink && (
-        <div className="shrink-0 border-t px-4 py-3">
-          {sourceLink.href ? (
-            <a
-              href={sourceLink.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 text-xs text-primary hover:underline"
-            >
-              <ExternalLink className="size-3" />
-              {sourceLink.label}
-            </a>
-          ) : (
-            <span className="text-xs text-muted-foreground">{sourceLink.label}</span>
-          )}
-        </div>
-      )}
-    </div>
   )
 }
 
@@ -294,12 +242,13 @@ export function ChatPanel({
   }
 
   function handleCiteClick(c: CitationChunk) {
-    setActiveCitation((prev) => (prev?.id === c.id ? null : c))
+    const next = activeCitation?.id === c.id ? null : c
+    setActiveCitation(next)
+    if (next) openSourceView(next)
   }
 
   return (
     <div className="flex flex-1 overflow-hidden">
-      {/* Chat column */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Messages */}
         <div className="flex-1 overflow-y-auto px-4 py-6">
@@ -328,9 +277,7 @@ export function ChatPanel({
                   )
                 }
 
-                const uniqueCitations = [
-                  ...new Map(citations.map((c) => [c.id, c])).values(),
-                ]
+                const uniqueCitations = [...new Map(citations.map((c) => [c.id, c])).values()]
 
                 return (
                   <div key={msg.id} className="flex flex-col gap-2">
@@ -406,13 +353,6 @@ export function ChatPanel({
           </form>
         </div>
       </div>
-
-      {/* Citation preview */}
-      {activeCitation && (
-        <div className="w-80 shrink-0 border-l bg-background">
-          <CitationPreview citation={activeCitation} onClose={() => setActiveCitation(null)} />
-        </div>
-      )}
     </div>
   )
 }
