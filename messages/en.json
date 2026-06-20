@@ -51,6 +51,32 @@
     "deleteSuccess": "Notebook deleted",
     "openNotebook": "Open notebook"
   },
+  "studio": {
+    "title": "Studio",
+    "audio": "Audio Overview",
+    "slidedeck": "Slide Deck",
+    "mindmap": "Mind Map",
+    "datatable": "Data Table",
+    "quiz": "Quiz"
+  },
+  "notes": {
+    "title": "Notes",
+    "newNote": "New Note",
+    "saveAsNote": "Save as note",
+    "placeholder": "Enter note...",
+    "save": "Save",
+    "back": "Back",
+    "fromChat": "From chat",
+    "noNotes": "No notes yet",
+    "createSuccess": "Note created",
+    "saveSuccess": "Note saved",
+    "deleteSuccess": "Note deleted",
+    "deleteNote": "Delete",
+    "setAsSource": "Set as source",
+    "setAllAsSource": "Set all notes as source",
+    "exportToDocs": "Export to Docs",
+    "exportToSheets": "Export to Sheets"
+  },
   "common": {
     "loading": "Loading...",
     "error": "An error occurred",

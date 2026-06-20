@@ -51,6 +51,32 @@
     "deleteSuccess": "Notizbuch gelöscht",
     "openNotebook": "Notizbuch öffnen"
   },
+  "studio": {
+    "title": "Studio",
+    "audio": "Audio-Zusammenfassung",
+    "slidedeck": "Präsentation",
+    "mindmap": "Mindmap",
+    "datatable": "Datentabelle",
+    "quiz": "Quiz"
+  },
+  "notes": {
+    "title": "Notizen",
+    "newNote": "Neue Notiz",
+    "saveAsNote": "Als Notiz speichern",
+    "placeholder": "Notiz eingeben...",
+    "save": "Speichern",
+    "back": "Zurück",
+    "fromChat": "Aus Chat",
+    "noNotes": "Noch keine Notizen",
+    "createSuccess": "Notiz erstellt",
+    "saveSuccess": "Notiz gespeichert",
+    "deleteSuccess": "Notiz gelöscht",
+    "deleteNote": "Löschen",
+    "setAsSource": "Als Quelle festlegen",
+    "setAllAsSource": "Alle Notizen als Quelle festlegen",
+    "exportToDocs": "In Docs exportieren",
+    "exportToSheets": "Nach Google Sheets exportieren"
+  },
   "common": {
     "loading": "Lädt...",
     "error": "Ein Fehler ist aufgetreten",

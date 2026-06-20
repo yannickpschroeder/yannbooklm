@@ -2,8 +2,9 @@
 
 import { useState, useRef, useEffect } from "react"
 import { useChat } from "@ai-sdk/react"
+import { useTranslations } from "next-intl"
 import { DefaultChatTransport, isTextUIPart } from "ai"
-import { ArrowRight, ChevronsRightLeft, FileText, Globe, Loader2, ExternalLink } from "lucide-react"
+import { ArrowRight, BookmarkPlus, ChevronsRightLeft, FileText, Globe, Loader2, ExternalLink } from "lucide-react"
 import { FaYoutube } from "react-icons/fa"
 import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
@@ -14,6 +15,7 @@ import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
 import { openSourceView } from "@/lib/source-view-event"
 import { resolveS3ImagesInContent } from "@/lib/s3-image-url"
+import { NOTE_FROM_CHAT_EVENT } from "@/components/notebook/studio-sidebar"
 import type { ChatMessage, CitationChunk } from "@/lib/types/chat"
 
 // ─── Source icon helper ────────────────────────────────────────────────────────
@@ -395,6 +397,31 @@ function AssistantContent({
   )
 }
 
+// ─── Save as note button ──────────────────────────────────────────────────────
+
+function SaveAsNoteButton({ messageId, content }: { messageId: string; content: string }) {
+  const t = useTranslations("notes")
+
+  function handleClick() {
+    const clean = content.replace(/\[\d+\]/g, "").trim()
+    window.dispatchEvent(
+      new CustomEvent(NOTE_FROM_CHAT_EVENT, {
+        detail: { content: clean, sourceMessageId: messageId },
+      })
+    )
+  }
+
+  return (
+    <button
+      onClick={handleClick}
+      title={t("saveAsNote")}
+      className="ml-auto opacity-0 transition-opacity group-hover:opacity-100 text-muted-foreground hover:text-foreground"
+    >
+      <BookmarkPlus className="size-3.5" />
+    </button>
+  )
+}
+
 // ─── Main ChatPanel ───────────────────────────────────────────────────────────
 
 export function ChatPanel({
@@ -493,7 +520,7 @@ export function ChatPanel({
                 const uniqueCitations = [...new Map(citations.map((c) => [c.id, c])).values()]
 
                 return (
-                  <div key={msg.id} className="flex flex-col gap-2">
+                  <div key={msg.id} className="group flex flex-col gap-2">
                     <div className="text-sm leading-relaxed">
                       <AssistantContent
                         text={fullText}
@@ -502,13 +529,16 @@ export function ChatPanel({
                         onCiteClick={handleCiteClick}
                       />
                     </div>
-                    {uniqueCitations.length > 0 && (
-                      <CitationBadgeRow
-                        citations={uniqueCitations}
-                        activeCitation={activeCitation}
-                        onCiteClick={handleCiteClick}
-                      />
-                    )}
+                    <div className="flex items-center gap-2">
+                      {uniqueCitations.length > 0 && (
+                        <CitationBadgeRow
+                          citations={uniqueCitations}
+                          activeCitation={activeCitation}
+                          onCiteClick={handleCiteClick}
+                        />
+                      )}
+                      <SaveAsNoteButton messageId={msg.id} content={fullText} />
+                    </div>
                   </div>
                 )
               })}
