@@ -42,9 +42,9 @@ async function ingestPdf(page: Page, pdfPath: string, titleFragment: string) {
   ).toBeVisible({ timeout: 10 * 60 * 1000 })
   // Page reloads automatically on success — wait for modal to disappear
   // then wait for full hydration before returning
-  await expect(page.getByRole("dialog")).not.toBeVisible({ timeout: 10_000 })
-  // readySourceCount prop is server-rendered — wait for it to reflect the new source
-  await expect(page.getByPlaceholder("Text eingeben…")).toBeVisible({ timeout: 10_000 })
+  // Page reloads automatically on success — wait for the new page to fully load
+  await page.waitForLoadState("load")
+  await expect(page.getByPlaceholder("Text eingeben…")).toBeVisible({ timeout: 15_000 })
 }
 
 // @local
