@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth"
 import { redirect, notFound } from "next/navigation"
 import { db } from "@/db"
-import { notebooks, sources, notes } from "@/db/schema"
+import { notebooks, sources, notes, studioOutputs } from "@/db/schema"
 import { and, eq, desc } from "drizzle-orm"
 import { NotebookHeader } from "@/components/notebook/notebook-header"
 import { SourceSidebar } from "@/components/notebook/source-sidebar"
@@ -26,9 +26,10 @@ export default async function NotebookLayout({
 
   if (!notebook) notFound()
 
-  const [notebookSources, initialNotes] = await Promise.all([
+  const [notebookSources, initialNotes, initialStudioOutputs] = await Promise.all([
     db.select().from(sources).where(eq(sources.notebookId, notebookId)).orderBy(desc(sources.createdAt)),
     db.select().from(notes).where(eq(notes.notebookId, notebookId)).orderBy(desc(notes.createdAt)),
+    db.select().from(studioOutputs).where(eq(studioOutputs.notebookId, notebookId)).orderBy(desc(studioOutputs.createdAt)),
   ])
 
   return (
@@ -37,7 +38,7 @@ export default async function NotebookLayout({
       <div className="flex flex-1 overflow-hidden">
         <SourceSidebar notebookId={notebookId} initialSources={notebookSources} />
         <main className="flex flex-1 overflow-hidden">{children}</main>
-        <StudioSidebar notebookId={notebookId} initialNotes={initialNotes} />
+        <StudioSidebar notebookId={notebookId} initialNotes={initialNotes} initialStudioOutputs={initialStudioOutputs} />
       </div>
     </div>
   )
