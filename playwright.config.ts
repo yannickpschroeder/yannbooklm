@@ -5,6 +5,7 @@ config() // load .env for DATABASE_URL in global setup
 
 export default defineConfig({
   testDir: "./tests",
+  testIgnore: "**/*.local.spec.ts",
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,

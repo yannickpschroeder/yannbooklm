@@ -1,6 +1,8 @@
+import { config } from "dotenv"
+config({ path: ".env" })
 import { execSync } from "child_process"
 import postgres from "postgres"
-import { randomUUID } from "crypto"
+import { randomUUID as newJti } from "crypto"
 import fs from "fs"
 import path from "path"
 import { encode } from "next-auth/jwt"
@@ -12,6 +14,7 @@ import {
 
 export const TEST_USER_EMAIL = "playwright-local@yannbooklm.test"
 export const TEST_USER_NAME = "Playwright Local"
+export const TEST_USER_ID = "00000000-0000-0000-0000-000000000001"
 export const TEST_BUCKET = "test-bucket"
 
 export default async function globalSetup() {
@@ -22,7 +25,12 @@ export default async function globalSetup() {
     cwd: path.join(__dirname, ".."),
   })
 
-  // 2. Run DB migrations
+  // 2. Enable pgvector extension + run migrations
+  console.log("[setup] Enabling pgvector extension…")
+  execSync(
+    `PGPASSWORD=postgres psql -h localhost -p 5433 -U postgres -d yannbooklm_test -c "CREATE EXTENSION IF NOT EXISTS vector;"`,
+    { stdio: "inherit" }
+  )
   console.log("[setup] Running DB migrations…")
   execSync("npm run db:push", {
     stdio: "inherit",
@@ -39,18 +47,16 @@ export default async function globalSetup() {
     "postgresql://postgres:postgres@localhost:5433/yannbooklm_test",
     { max: 1 }
   )
-  let userId: string
   try {
-    const [user] = await sql<{ id: string }[]>`
+    await sql`
       INSERT INTO users (id, name, email, email_verified)
-      VALUES (${randomUUID()}, ${TEST_USER_NAME}, ${TEST_USER_EMAIL}, NOW())
-      ON CONFLICT (email) DO UPDATE SET name = ${TEST_USER_NAME}
-      RETURNING id
+      VALUES (${TEST_USER_ID}, ${TEST_USER_NAME}, ${TEST_USER_EMAIL}, NOW())
+      ON CONFLICT (id) DO UPDATE SET name = ${TEST_USER_NAME}
     `
-    userId = user.id
   } finally {
     await sql.end()
   }
+  const userId = TEST_USER_ID
 
   const token = await encode({
     token: {
@@ -59,7 +65,7 @@ export default async function globalSetup() {
       email: TEST_USER_EMAIL,
       iat: Math.floor(Date.now() / 1000),
       exp: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60,
-      jti: randomUUID(),
+      jti: newJti(),
     },
     secret: process.env.AUTH_SECRET!,
     salt: "authjs.session-token",

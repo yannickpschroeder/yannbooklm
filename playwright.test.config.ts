@@ -24,22 +24,11 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "npm run dev -- --port 3001",
+    command: "npm run dev:test",
     url: "http://localhost:3001",
-    reuseExistingServer: false,
-    timeout: 60_000,
+    reuseExistingServer: !process.env.CI,
+    timeout: 5 * 60_000,
     stdout: "ignore",
     stderr: "ignore",
-    env: {
-      DATABASE_URL:
-        "postgresql://postgres:postgres@localhost:5433/yannbooklm_test",
-      S3_ENDPOINT: "http://localhost:4566",
-      AWS_S3_BUCKET: "test-bucket",
-      AWS_ACCESS_KEY_ID: "test",
-      AWS_SECRET_ACCESS_KEY: "test",
-      AWS_REGION: "eu-central-1",
-      E2E_TEST: "true",
-      VOYAGE_API_KEY: "test",
-    },
   },
 })

@@ -9,13 +9,20 @@ const KRETA_PDF = path.join(__dirname, "fixtures/kreta-reisefuehrer.pdf")
 // Helper: create a notebook and navigate into it, returns notebookId
 async function createNotebook(page: Page, name: string) {
   await page.goto("/de/app")
+  await page.waitForLoadState("domcontentloaded")
   await page.getByRole("button", { name: "Neues Notizbuch" }).click()
   await page.getByPlaceholder("Name des Notizbuchs").fill(name)
   await page.getByRole("dialog").getByRole("button", { name: "Erstellen" }).click()
-  await expect(page.getByText(name)).toBeVisible()
-  const card = page.locator('[data-slot="card"]').filter({ hasText: name })
+  // Wait for the new notebook card to appear in the list
+  const card = page.locator('[data-slot="card"]').filter({ hasText: name }).first()
+  await expect(card).toBeVisible({ timeout: 30_000 })
   await card.getByRole("link", { name: "Notizbuch öffnen" }).click()
   await page.waitForURL(/\/de\/app\/.+/)
+  // The add-source modal auto-opens on empty notebooks — close it so tests start clean
+  const closeBtn = page.getByRole("dialog").getByRole("button", { name: "Schließen" })
+  if (await closeBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
+    await closeBtn.click()
+  }
   return page.url().split("/").pop()!
 }
 

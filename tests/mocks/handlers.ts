@@ -5,7 +5,7 @@ import kretaEmbeddings from "../fixtures/kreta-embeddings.json"
 import korfuEmbeddings from "../fixtures/korfu-embeddings.json"
 
 const korfuHtml = fs.readFileSync(
-  path.join(__dirname, "../fixtures/korfu.html"),
+  path.join(process.cwd(), "tests/fixtures/korfu.html"),
   "utf-8"
 )
 

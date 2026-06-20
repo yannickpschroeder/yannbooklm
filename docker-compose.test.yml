@@ -18,3 +18,13 @@ services:
       LOCALSTACK_AUTH_TOKEN: ""
     ports:
       - "4566:4566"
+
+  pgadmin:
+    image: dpage/pgadmin4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@test.local
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5434:80"
+    depends_on:
+      - postgres
