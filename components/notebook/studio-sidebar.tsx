@@ -444,7 +444,7 @@ export function StudioSidebar({
                           <DropdownMenuTrigger className="shrink-0 rounded p-0.5 opacity-0 transition-opacity hover:bg-muted-foreground/20 group-hover:opacity-100 focus:opacity-100">
                             <MoreHorizontal className="size-4 text-muted-foreground" />
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
+                          <DropdownMenuContent side="left" align="start">
                             <DropdownMenuItem className="whitespace-nowrap" onClick={() => item.note && setNoteAsSource(item.note.title, item.note.content)} disabled={!item.note}>
                               <BookmarkPlus className="size-4" />{t("setAsSource")}
                             </DropdownMenuItem>
