@@ -4,13 +4,14 @@ import { useState, useRef, useEffect } from "react"
 import { useChat } from "@ai-sdk/react"
 import { useTranslations } from "next-intl"
 import { DefaultChatTransport, isTextUIPart } from "ai"
-import { ArrowRight, BookmarkPlus, Check, Copy, Loader2, MoreHorizontal, Trash2 } from "lucide-react"
+import { ArrowRight, BookmarkPlus, Check, Copy, Loader2, MoreHorizontal, SlidersHorizontal, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import { openSourceView } from "@/lib/source-view-event"
 import { NOTE_FROM_CHAT_EVENT } from "@/components/notebook/studio-sidebar"
 import { AssistantContent, CitationBadgeRow } from "@/components/notebook/chat-citations"
+import { ChatConfigModal, type ChatConfig } from "@/components/notebook/chat-config-modal"
 import type { ChatMessage, CitationChunk } from "@/lib/types/chat"
 
 // ─── Message action buttons ───────────────────────────────────────────────────
@@ -38,20 +39,20 @@ function MessageActions({ messageId, content }: { messageId: string; content: st
   }
 
   return (
-    <div className="ml-auto flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+    <div className="flex items-center gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+      <button
+        onClick={handleSaveNote}
+        className="border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors"
+      >
+        <BookmarkPlus className="size-3.5" />
+        {tNotes("saveAsNote")}
+      </button>
       <button
         onClick={handleCopy}
         title={tChat("copyMessage")}
-        className="text-muted-foreground hover:text-foreground rounded p-0.5 transition-colors"
+        className="border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground flex size-6 items-center justify-center rounded-full border transition-colors"
       >
-        {copied ? <Check className="size-3.5 text-green-500" /> : <Copy className="size-3.5" />}
-      </button>
-      <button
-        onClick={handleSaveNote}
-        title={tNotes("saveAsNote")}
-        className="text-muted-foreground hover:text-foreground rounded p-0.5 transition-colors"
-      >
-        <BookmarkPlus className="size-3.5" />
+        {copied ? <Check className="size-3 text-green-500" /> : <Copy className="size-3" />}
       </button>
     </div>
   )
@@ -71,6 +72,17 @@ export function ChatPanel({
   const [input, setInput] = useState("")
   const [activeCitation, setActiveCitation] = useState<CitationChunk | null>(null)
   const [activeSourceCount, setActiveSourceCount] = useState(readySourceCount)
+  const [configOpen, setConfigOpen] = useState(false)
+  const [chatConfig, setChatConfig] = useState<ChatConfig>(() => {
+    if (typeof window === "undefined") return { mode: "standard", length: "standard" }
+    try {
+      const saved = localStorage.getItem(`chat-config-${notebookId}`)
+      if (saved) return JSON.parse(saved) as ChatConfig
+    } catch {}
+    return { mode: "standard", length: "standard" }
+  })
+  const chatConfigRef = useRef(chatConfig)
+  chatConfigRef.current = chatConfig
   const bottomRef = useRef<HTMLDivElement>(null)
 
   const { messages, sendMessage, status, setMessages } = useChat<ChatMessage>({
@@ -103,7 +115,7 @@ export function ChatPanel({
       if (!force && activeSourceCount === 0) return
       setInput("")
       setActiveCitation(null)
-      sendMessage({ text: text.trim() })
+      sendMessage({ text: text.trim() }, { body: { chatMode: chatConfigRef.current.mode, chatLength: chatConfigRef.current.length } })
     }
     window.addEventListener("notebook:ask", onAsk)
     return () => window.removeEventListener("notebook:ask", onAsk)
@@ -124,7 +136,7 @@ export function ChatPanel({
     if (!text || isStreaming || activeSourceCount === 0) return
     setInput("")
     setActiveCitation(null)
-    sendMessage({ text })
+    sendMessage({ text }, { body: { chatMode: chatConfigRef.current.mode, chatLength: chatConfigRef.current.length } })
   }
 
   async function handleClearHistory() {
@@ -148,6 +160,13 @@ export function ChatPanel({
         {/* Header */}
         <div className="flex shrink-0 items-center justify-between border-b px-4 py-2">
           <span className="text-sm font-semibold">{tChat("title")}</span>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setConfigOpen(true)}
+              className="hover:bg-accent flex size-7 shrink-0 items-center justify-center rounded-md transition-colors"
+            >
+              <SlidersHorizontal className="size-4" />
+            </button>
           <DropdownMenu>
             <DropdownMenuTrigger className="hover:bg-accent flex size-7 shrink-0 items-center justify-center rounded-md transition-colors">
               <MoreHorizontal className="size-4" />
@@ -163,6 +182,7 @@ export function ChatPanel({
               <p className="text-muted-foreground px-2 py-1 text-xs">{tChat("clearHistoryHint")}</p>
             </DropdownMenuContent>
           </DropdownMenu>
+          </div>
         </div>
         {/* Messages */}
         <div className="flex-1 overflow-y-auto px-4 py-6">
@@ -203,16 +223,14 @@ export function ChatPanel({
                         onCiteClick={handleCiteClick}
                       />
                     </div>
-                    <div className="flex items-center gap-2">
-                      {uniqueCitations.length > 0 && (
-                        <CitationBadgeRow
-                          citations={uniqueCitations}
-                          activeCitation={activeCitation}
-                          onCiteClick={handleCiteClick}
-                        />
-                      )}
-                      <MessageActions messageId={msg.id} content={fullText} />
-                    </div>
+                    {uniqueCitations.length > 0 && (
+                      <CitationBadgeRow
+                        citations={uniqueCitations}
+                        activeCitation={activeCitation}
+                        onCiteClick={handleCiteClick}
+                      />
+                    )}
+                    <MessageActions messageId={msg.id} content={fullText} />
                   </div>
                 )
               })}
@@ -264,6 +282,17 @@ export function ChatPanel({
           </form>
         </div>
       </div>
+      <ChatConfigModal
+        open={configOpen}
+        onOpenChange={setConfigOpen}
+        config={chatConfig}
+        onSave={(cfg) => {
+          setChatConfig(cfg)
+          try {
+            localStorage.setItem(`chat-config-${notebookId}`, JSON.stringify(cfg))
+          } catch {}
+        }}
+      />
     </div>
   )
 }
