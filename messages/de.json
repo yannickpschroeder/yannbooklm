@@ -86,6 +86,7 @@
     "flashcardsNoSources": "Keine Quellen verfügbar. Bitte zuerst Quellen hinzufügen.",
     "flashcardsError": "Fehler beim Generieren der Karteikarten",
     "generationError": "Fehler beim Generieren. Bitte erneut versuchen.",
+    "timeoutError": "Generierung abgebrochen: Vercel limitiert Funktionen auf 10 Sekunden. Bitte auf den Pro-Plan upgraden.",
     "slidedeckNoSources": "Keine Quellen verfügbar. Bitte zuerst Quellen hinzufügen.",
     "slidedeckError": "Fehler beim Generieren der Präsentation",
     "slidedeckSlidesError": "Präsentation generiert, aber Google Slides konnte nicht erstellt werden.",

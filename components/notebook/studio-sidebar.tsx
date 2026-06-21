@@ -415,6 +415,7 @@ export function StudioSidebar({
 
         const readyOutputs: StudioOutput[] = []
         const errorIds: string[] = []
+        const timeoutIds: string[] = []
 
         for (const s of statuses) {
           if (processedIdsRef.current.has(s.id)) continue
@@ -424,10 +425,17 @@ export function StudioSidebar({
           } else if (s.status === "error") {
             processedIdsRef.current.add(s.id)
             errorIds.push(s.id)
+          } else if (s.status === "timeout") {
+            processedIdsRef.current.add(s.id)
+            timeoutIds.push(s.id)
           }
         }
 
-        if (readyOutputs.length > 0 || errorIds.length > 0) {
+        if (readyOutputs.length > 0 || errorIds.length > 0 || timeoutIds.length > 0) {
+          if (timeoutIds.length > 0) {
+            toast.error(tStudio("timeoutError"), { duration: 8000 })
+            setStudioOutputsList((prev) => prev.filter((o) => !timeoutIds.includes(o.id)))
+          }
           if (errorIds.length > 0) {
             setStudioOutputsList((prev) => {
               for (const id of errorIds) {

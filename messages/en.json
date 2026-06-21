@@ -86,6 +86,7 @@
     "flashcardsNoSources": "No sources available. Please add sources first.",
     "flashcardsError": "Failed to generate flashcards",
     "generationError": "Generation failed. Please try again.",
+    "timeoutError": "Generation timed out: Vercel limits functions to 10 seconds. Please upgrade to the Pro plan.",
     "slidedeckNoSources": "No sources available. Please add sources first.",
     "slidedeckError": "Failed to generate slide deck",
     "slidedeckSlidesError": "Slide deck generated, but Google Slides could not be created.",
