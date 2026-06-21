@@ -7,7 +7,7 @@ import { db } from "@/db"
 import { studioOutputs, notebooks, parentChunks, sources } from "@/db/schema"
 import { and, eq } from "drizzle-orm"
 
-export const maxDuration = 10
+export const maxDuration = 60
 
 async function getSourceContent(notebookId: string) {
   const rows = await db

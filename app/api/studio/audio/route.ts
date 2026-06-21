@@ -11,7 +11,7 @@ import { s3, S3_BUCKET } from "@/lib/s3/client"
 import { SynthesizeSpeechCommand, Engine, VoiceId, OutputFormat } from "@aws-sdk/client-polly"
 import { PutObjectCommand } from "@aws-sdk/client-s3"
 
-export const maxDuration = 10
+export const maxDuration = 300
 
 // ─── Voices ───────────────────────────────────────────────────────────────────
 

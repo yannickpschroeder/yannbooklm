@@ -7,7 +7,7 @@ import { and, eq } from "drizzle-orm"
 import { ingestPdf, ingestUrl, ingestYoutube, ingestText } from "@/lib/ingestion/pipeline"
 import { extractVideoId } from "@/lib/ingestion/youtube"
 
-export const maxDuration = 10
+export const maxDuration = 300
 
 type PdfPayload = { notebookId: string; type: "pdf"; title: string; s3Key: string; fileHash?: string }
 type UrlPayload = { notebookId: string; type: "url"; url: string }
