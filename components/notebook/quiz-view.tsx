@@ -99,7 +99,7 @@ export function QuizView({
 
   function restart(reviewMode: boolean) {
     setIndex(0)
-    setAnswers(data.questions.map(() => ({ selected: null, skipped: false })))
+    if (!reviewMode) setAnswers(data.questions.map(() => ({ selected: null, skipped: false })))
     setMode(reviewMode ? "review" : "quiz")
   }
 
