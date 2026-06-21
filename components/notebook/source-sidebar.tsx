@@ -262,17 +262,10 @@ export function SourceSidebar({
     Object.fromEntries(initialSources.map((s) => [s.id, s.enabled]))
   )
 
-  const processingSource = initialSources.find(
-    (s) => s.status === "processing" || s.status === "pending"
-  )
-  const [activeUpload, setActiveUpload] = useState<ActiveUpload | null>(
-    processingSource
-      ? {
-          sourceId: processingSource.id,
-          title: processingSource.title,
-          embedPct: processingSource.embedProgress,
-        }
-      : null
+  const [activeUploads, setActiveUploads] = useState<ActiveUpload[]>(() =>
+    initialSources
+      .filter((s) => s.status === "processing" || s.status === "pending")
+      .map((s) => ({ sourceId: s.id, title: s.title, embedPct: s.embedProgress }))
   )
 
   // Listen for source-view events from ChatPanel
@@ -296,72 +289,67 @@ export function SourceSidebar({
     })
   }, [initialSources])
 
-  // Poll while an upload is minimized to sidebar
-  const activeSourceIdRef = useRef<string | null>(null)
+  // One poller per active upload — restarts when the set of sourceIds changes
+  const activeUploadIds = activeUploads.map((u) => u.sourceId).join(",")
   useEffect(() => {
-    if (!activeUpload) return
-    activeSourceIdRef.current = activeUpload.sourceId
-
-    let cancelled = false
-    async function poll() {
-      for (let i = 0; i < 300; i++) {
-        if (cancelled) return
-        await new Promise((r) => setTimeout(r, 2000))
-        if (cancelled) return
-        try {
-          const res = await fetch(`/api/sources/${activeSourceIdRef.current}/status`)
-          if (res.status === 404 || !res.ok) {
-            if (!cancelled) {
-              setActiveUpload(null)
-              toast.error("Verarbeitung fehlgeschlagen")
+    if (activeUploads.length === 0) return
+    const controllers = activeUploads.map((upload) => {
+      const ctrl = { cancelled: false }
+      const { sourceId } = upload
+      ;(async () => {
+        for (let i = 0; i < 300; i++) {
+          if (ctrl.cancelled) return
+          await new Promise((r) => setTimeout(r, 2000))
+          if (ctrl.cancelled) return
+          try {
+            const res = await fetch(`/api/sources/${sourceId}/status`)
+            if (res.status === 404 || !res.ok) {
+              if (!ctrl.cancelled) {
+                setActiveUploads((prev) => prev.filter((u) => u.sourceId !== sourceId))
+                toast.error("Verarbeitung fehlgeschlagen")
+              }
+              return
             }
-            return
-          }
-          const { status, embedProgress } = (await res.json()) as {
-            status: string
-            embedProgress: number
-          }
-          if (!cancelled)
-            setActiveUpload((prev) => (prev ? { ...prev, embedPct: embedProgress } : null))
-          if (status === "ready") {
-            if (!cancelled) {
-              setActiveUpload(null)
-              window.location.reload()
+            const { status, embedProgress } = (await res.json()) as { status: string; embedProgress: number }
+            if (!ctrl.cancelled)
+              setActiveUploads((prev) => prev.map((u) => u.sourceId === sourceId ? { ...u, embedPct: embedProgress } : u))
+            if (status === "ready") {
+              if (!ctrl.cancelled) {
+                setActiveUploads((prev) => prev.filter((u) => u.sourceId !== sourceId))
+                window.location.reload()
+              }
+              return
             }
-            return
-          }
-          if (status === "error") {
-            if (!cancelled) {
-              setActiveUpload(null)
-              toast.error("Verarbeitung fehlgeschlagen")
+            if (status === "error") {
+              if (!ctrl.cancelled) {
+                setActiveUploads((prev) => prev.filter((u) => u.sourceId !== sourceId))
+                toast.error("Verarbeitung fehlgeschlagen")
+              }
+              return
             }
-            return
+          } catch {
+            // network hiccup — continue polling
           }
-        } catch {
-          // network hiccup — continue polling
         }
-      }
-      if (!cancelled) {
-        setActiveUpload(null)
-        toast.error("Timeout beim Verarbeiten")
-      }
-    }
-
-    poll()
-    return () => {
-      cancelled = true
-    }
-  }, [activeUpload?.sourceId]) // eslint-disable-line react-hooks/exhaustive-deps
+        if (!ctrl.cancelled) {
+          setActiveUploads((prev) => prev.filter((u) => u.sourceId !== sourceId))
+          toast.error("Timeout beim Verarbeiten")
+        }
+      })()
+      return ctrl
+    })
+    return () => { controllers.forEach((c) => { c.cancelled = true }) }
+  }, [activeUploadIds]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleMinimize(sourceId: string, title: string) {
-    setActiveUpload({ sourceId, title, embedPct: 0 })
+    setActiveUploads((prev) =>
+      prev.find((u) => u.sourceId === sourceId) ? prev : [...prev, { sourceId, title, embedPct: 0 }]
+    )
     setModalOpen(false)
   }
 
-  function handleCancelActiveUpload() {
-    if (!activeUpload) return
-    const { sourceId } = activeUpload
-    setActiveUpload(null)
+  function handleCancelUpload(sourceId: string) {
+    setActiveUploads((prev) => prev.filter((u) => u.sourceId !== sourceId))
     deleteSource(sourceId, notebookId).catch(() => undefined)
   }
 
@@ -537,19 +525,19 @@ export function SourceSidebar({
                 })()}
 
               <ul className="space-y-0.5">
-                {activeUpload && (
-                  <li className="bg-muted/50 flex items-center gap-2 rounded-md px-2 py-2">
+                {activeUploads.map((upload) => (
+                  <li key={upload.sourceId} className="bg-muted/50 flex items-center gap-2 rounded-md px-2 py-2">
                     <Loader2 className="text-primary size-4 shrink-0 animate-spin" />
                     <div className="min-w-0 flex-1">
-                      <span className="block truncate text-sm" title={activeUpload.title}>
-                        {activeUpload.title}
+                      <span className="block truncate text-sm" title={upload.title}>
+                        {upload.title}
                       </span>
                       <div className="mt-1 flex items-center gap-1.5">
                         <div className="bg-muted h-1 flex-1 overflow-hidden rounded-full">
-                          {activeUpload.embedPct > 0 ? (
+                          {upload.embedPct > 0 ? (
                             <div
                               className="bg-primary h-full transition-all duration-500"
-                              style={{ width: `${activeUpload.embedPct}%` }}
+                              style={{ width: `${upload.embedPct}%` }}
                             />
                           ) : (
                             <div className="bg-primary h-full w-1/3 animate-pulse" />
@@ -557,7 +545,7 @@ export function SourceSidebar({
                         </div>
                         <button
                           type="button"
-                          onClick={handleCancelActiveUpload}
+                          onClick={() => handleCancelUpload(upload.sourceId)}
                           className="text-muted-foreground hover:text-foreground shrink-0 rounded p-0.5"
                           title="Abbrechen"
                         >
@@ -566,9 +554,9 @@ export function SourceSidebar({
                       </div>
                     </div>
                   </li>
-                )}
+                ))}
 
-                {filtered.length === 0 && !activeUpload ? (
+                {filtered.length === 0 && activeUploads.length === 0 ? (
                   <li>
                     <p className="text-muted-foreground py-6 text-center text-xs">
                       {initialSources.length === 0
