@@ -44,11 +44,21 @@ export function AudioPlayer({ outputId, data }: Props) {
     const audio = audioRef.current
     if (!audio) return
 
-    function onTimeUpdate() { setCurrentTime(audio!.currentTime) }
-    function onDurationChange() { setDuration(audio!.duration || 0) }
-    function onEnded() { setPlaying(false) }
-    function onPause() { setPlaying(false) }
-    function onPlay() { setPlaying(true) }
+    function onTimeUpdate() {
+      setCurrentTime(audio!.currentTime)
+    }
+    function onDurationChange() {
+      setDuration(audio!.duration || 0)
+    }
+    function onEnded() {
+      setPlaying(false)
+    }
+    function onPause() {
+      setPlaying(false)
+    }
+    function onPlay() {
+      setPlaying(true)
+    }
 
     audio.addEventListener("timeupdate", onTimeUpdate)
     audio.addEventListener("durationchange", onDurationChange)
@@ -133,7 +143,7 @@ export function AudioPlayer({ outputId, data }: Props) {
             <div key={i} className="flex gap-2 text-xs leading-relaxed">
               <span
                 className={cn(
-                  "mt-0.5 shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
+                  "a mt-0.5 shrink-0 content-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
                   turn.speaker === "A"
                     ? "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300"
                     : "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300"

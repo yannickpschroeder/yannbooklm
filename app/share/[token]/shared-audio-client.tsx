@@ -5,9 +5,11 @@ import { Button } from "@/components/ui/button"
 import { Play, Pause, ChevronDown, ChevronUp } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { AudioData } from "@/app/api/studio/audio/route"
+import { useTranslations } from "next-intl"
 
 export function SharedAudioClient({ shareToken, data }: { shareToken: string; data: AudioData }) {
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const t = useTranslations("audio")
   const [url, setUrl] = useState("")
   const [playing, setPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
@@ -64,7 +66,9 @@ export function SharedAudioClient({ shareToken, data }: { shareToken: string; da
 
   function formatTime(s: number) {
     if (!isFinite(s)) return "0:00"
-    return `${Math.floor(s / 60)}:${Math.floor(s % 60).toString().padStart(2, "0")}`
+    return `${Math.floor(s / 60)}:${Math.floor(s % 60)
+      .toString()
+      .padStart(2, "0")}`
   }
 
   return (
@@ -113,13 +117,13 @@ export function SharedAudioClient({ shareToken, data }: { shareToken: string; da
             <div key={i} className="flex gap-3 text-sm leading-relaxed">
               <span
                 className={cn(
-                  "mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold",
+                  "mt-0.5 shrink-0 content-center rounded-full px-2 py-0.5 text-xs font-semibold",
                   turn.speaker === "A"
                     ? "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300"
                     : "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300"
                 )}
               >
-                {turn.speaker === "A" ? "Host A" : "Host B"}
+                {turn.speaker === "A" ? t("hostA") : t("hostB")}
               </span>
               <p>{turn.text}</p>
             </div>

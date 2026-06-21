@@ -15,13 +15,13 @@ export default async function LoginPage({ params }: { params: Promise<{ locale: 
   const t = await getTranslations("auth")
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background p-4">
-      <div className="absolute right-4 top-4">
+    <main className="bg-background flex min-h-screen items-center justify-center p-4">
+      <div className="absolute top-4 right-4">
         <LanguageSwitcher />
       </div>
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-2 flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+          <div className="bg-primary text-primary-foreground mx-auto mb-2 flex size-10 items-center justify-center rounded-lg">
             <BookOpen className="size-5" />
           </div>
           <CardTitle className="text-xl">{t("title")}</CardTitle>
@@ -29,12 +29,12 @@ export default async function LoginPage({ params }: { params: Promise<{ locale: 
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           <SignInWithGoogle label={t("continueWithGoogle")} />
-          <div className="flex items-center gap-2">
+          {/* <div className="flex items-center gap-2">
             <Separator className="flex-1" />
             <span className="text-xs text-muted-foreground">{t("or")}</span>
             <Separator className="flex-1" />
           </div>
-          <SignInWithGitHub label={t("continueWithGitHub")} />
+          <SignInWithGitHub label={t("continueWithGitHub")} /> */}
         </CardContent>
       </Card>
     </main>
