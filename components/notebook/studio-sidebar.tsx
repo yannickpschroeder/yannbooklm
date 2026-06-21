@@ -1479,16 +1479,13 @@ export function StudioSidebar({
                       className="size-7 shrink-0"
                       title={tStudio("share")}
                       onClick={async () => {
-                        if (slidesUrl) {
-                          if (navigator.share)
-                            await navigator
-                              .share({ title: activeSlidedeck.title ?? undefined, url: slidesUrl })
-                              .catch(() => undefined)
-                          else {
-                            await navigator.clipboard.writeText(slidesUrl)
-                            toast.success(tStudio("shareCopied"))
-                          }
-                        } else toast.error(tStudio("slidedeckNoUrl"))
+                        const res = await fetch(`/api/studio/slidedeck/${activeSlidedeck.id}/share`, { method: "POST" })
+                        if (!res.ok) { toast.error(tStudio("shareError")); return }
+                        const { token } = (await res.json()) as { token: string }
+                        const url = `${window.location.origin}/share/${token}`
+                        if (navigator.share)
+                          await navigator.share({ title: activeSlidedeck.title ?? undefined, url }).catch(() => undefined)
+                        else { await navigator.clipboard.writeText(url); toast.success(tStudio("shareCopied")) }
                       }}
                     >
                       <Share2 className="size-3.5" />
@@ -2288,22 +2285,6 @@ export function StudioSidebar({
                                         <>
                                           <DropdownMenuItem
                                             className="whitespace-nowrap"
-                                            onClick={() => {
-                                              const o = studioOutputsList.find(
-                                                (x) => x.id === item.id
-                                              )
-                                              if (url)
-                                                window.open(url, "_blank", "noopener,noreferrer")
-                                              else if (o?.data && o.status === "ready")
-                                                void createGoogleSlidesForOutput(o)
-                                              else toast.error(tStudio("slidedeckNoUrl"))
-                                            }}
-                                          >
-                                            <ExternalLink className="size-4" />
-                                            {tStudio("slidedeckOpen")}
-                                          </DropdownMenuItem>
-                                          <DropdownMenuItem
-                                            className="whitespace-nowrap"
                                             onClick={async () => {
                                               if (url) {
                                                 if (navigator.share) {
@@ -2332,6 +2313,22 @@ export function StudioSidebar({
                                           >
                                             <Pencil className="size-4" />
                                             {tStudio("rename")}
+                                          </DropdownMenuItem>
+                                          <DropdownMenuItem
+                                            className="whitespace-nowrap"
+                                            onClick={() => {
+                                              const o = studioOutputsList.find(
+                                                (x) => x.id === item.id
+                                              )
+                                              if (url)
+                                                window.open(url, "_blank", "noopener,noreferrer")
+                                              else if (o?.data && o.status === "ready")
+                                                void createGoogleSlidesForOutput(o)
+                                              else toast.error(tStudio("slidedeckNoUrl"))
+                                            }}
+                                          >
+                                            <ExternalLink className="size-4" />
+                                            {tStudio("slidedeckOpen")}
                                           </DropdownMenuItem>
                                           <DropdownMenuItem
                                             className="whitespace-nowrap"
@@ -2789,6 +2786,7 @@ export function StudioSidebar({
       )}
       {revisionModalOpen && activeSlidedeck?.data && (
         <SlidedeckRevisionModal
+          outputId={activeSlidedeck.id}
           slideData={
             activeSlidedeck.data as SlideData & {
               usedSources?: SlidedeckUsedSource[]

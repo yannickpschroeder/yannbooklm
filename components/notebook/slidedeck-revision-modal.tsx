@@ -12,6 +12,7 @@ import { slidesUrlToExportUrl } from "@/lib/google-slides-export"
 import type { SlidedeckUsedSource } from "./slidedeck-modal"
 
 type SlidedeckRevisionModalProps = {
+  outputId: string
   slideData: SlideData & { usedSources?: SlidedeckUsedSource[]; language?: string; slidesUrl?: string }
   presentationTitle: string
   onClose: () => void
@@ -22,6 +23,7 @@ type SlidedeckRevisionModalProps = {
 }
 
 export function SlidedeckRevisionModal({
+  outputId,
   slideData,
   presentationTitle,
   onClose,
@@ -104,8 +106,10 @@ export function SlidedeckRevisionModal({
             className="size-8 text-white/50 hover:bg-white/10 hover:text-white"
             title={t("share")}
             onClick={async () => {
-              const url = slideData.slidesUrl
-              if (!url) { toast.error(t("slidedeckNoUrl")); return }
+              const res = await fetch(`/api/studio/slidedeck/${outputId}/share`, { method: "POST" })
+              if (!res.ok) { toast.error(t("shareError")); return }
+              const { token } = (await res.json()) as { token: string }
+              const url = `${window.location.origin}/share/${token}`
               if (navigator.share) await navigator.share({ title: presentationTitle, url }).catch(() => undefined)
               else { await navigator.clipboard.writeText(url); toast.success(t("shareCopied")) }
             }}

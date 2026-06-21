@@ -12,6 +12,8 @@ import { ReportView } from "@/components/notebook/report-view"
 import type { ReportData } from "@/components/notebook/report-view"
 import { SharedAudioClient } from "./shared-audio-client"
 import type { AudioData } from "@/app/api/studio/audio/route"
+import { SharedSlidedeckClient } from "./shared-slidedeck-client"
+import type { SlideData } from "@/lib/google-slides-export"
 
 export default async function SharePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params
@@ -31,6 +33,7 @@ export default async function SharePage({ params }: { params: Promise<{ token: s
 
   const isMindmap = output.type === "mindmap"
   const isAudio = output.type === "audio"
+  const isSlidedeck = output.type === "slidedeck"
 
   return (
     <div className="bg-background flex h-screen flex-col overflow-hidden">
@@ -47,6 +50,10 @@ export default async function SharePage({ params }: { params: Promise<{ token: s
       ) : isAudio ? (
         <main className="flex-1 overflow-y-auto">
           <SharedAudioClient shareToken={token} data={output.data as AudioData} />
+        </main>
+      ) : isSlidedeck ? (
+        <main className="bg-[#1b1b2e] flex-1 overflow-y-auto">
+          <SharedSlidedeckClient data={output.data as SlideData} />
         </main>
       ) : output.type === "report" ? (
         <main className="mx-auto w-full max-w-2xl flex-1 overflow-y-auto">
