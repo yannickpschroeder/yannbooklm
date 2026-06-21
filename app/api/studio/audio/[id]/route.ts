@@ -32,15 +32,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
   const data = output.data as AudioData
 
-  const urls = await Promise.all(
-    data.segments.map((seg) =>
-      getSignedUrl(
-        s3,
-        new GetObjectCommand({ Bucket: S3_BUCKET, Key: seg.s3Key }),
-        { expiresIn: 3600 }
-      )
-    )
+  const url = await getSignedUrl(
+    s3,
+    new GetObjectCommand({ Bucket: S3_BUCKET, Key: data.s3Key }),
+    { expiresIn: 3600 }
   )
 
-  return NextResponse.json({ urls })
+  return NextResponse.json({ url })
 }

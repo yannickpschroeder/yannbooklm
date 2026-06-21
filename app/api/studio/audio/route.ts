@@ -30,10 +30,9 @@ const ScriptSchema = z.object({
 })
 
 export type AudioTurn = { speaker: "A" | "B"; text: string }
-export type AudioSegment = { speaker: "A" | "B"; s3Key: string }
 export type AudioData = {
   turns: AudioTurn[]
-  segments: AudioSegment[]
+  s3Key: string
   usedSources: { id: string; title: string; type: string }[]
 }
 
@@ -68,11 +67,7 @@ async function getSourceContent(notebookId: string) {
 
 // ─── TTS helper ───────────────────────────────────────────────────────────────
 
-async function synthesizeAndUpload(
-  text: string,
-  voice: VoiceId,
-  s3Key: string
-): Promise<void> {
+async function synthesizeTurn(text: string, voice: VoiceId): Promise<Buffer> {
   const { AudioStream } = await polly.send(
     new SynthesizeSpeechCommand({
       Text: text,
@@ -88,16 +83,7 @@ async function synthesizeAndUpload(
   for await (const chunk of AudioStream as AsyncIterable<Uint8Array>) {
     chunks.push(chunk)
   }
-  const buffer = Buffer.concat(chunks)
-
-  await s3.send(
-    new PutObjectCommand({
-      Bucket: S3_BUCKET,
-      Key: s3Key,
-      Body: buffer,
-      ContentType: "audio/mpeg",
-    })
-  )
+  return Buffer.concat(chunks)
 }
 
 // ─── Background job ───────────────────────────────────────────────────────────
@@ -127,24 +113,32 @@ Quellen:
 ${content}`,
     })
 
-    const segments: AudioSegment[] = []
+    // Synthesize all turns in parallel, then concatenate buffers
+    const buffers = await Promise.all(
+      object.turns.map((turn) =>
+        synthesizeTurn(turn.text, turn.speaker === "A" ? VOICE_A : VOICE_B)
+      )
+    )
+    const combined = Buffer.concat(buffers)
 
-    for (let i = 0; i < object.turns.length; i++) {
-      const turn = object.turns[i]
-      const voice = turn.speaker === "A" ? VOICE_A : VOICE_B
-      const s3Key = `audio/${outputId}/${i}.mp3`
-      await synthesizeAndUpload(turn.text, voice, s3Key)
-      segments.push({ speaker: turn.speaker, s3Key })
-    }
+    const s3Key = `audio/${outputId}/full.mp3`
+    await s3.send(
+      new PutObjectCommand({
+        Bucket: S3_BUCKET,
+        Key: s3Key,
+        Body: combined,
+        ContentType: "audio/mpeg",
+      })
+    )
 
-    const data: AudioData = { turns: object.turns, segments, usedSources }
-    const title = `Audio Overview`
+    const data: AudioData = { turns: object.turns, s3Key, usedSources }
 
     await db
       .update(studioOutputs)
-      .set({ status: "ready", title, data, createdAt: new Date() })
+      .set({ status: "ready", title: "Audio Overview", data, createdAt: new Date() })
       .where(eq(studioOutputs.id, outputId))
-  } catch {
+  } catch (err) {
+    console.error("[audio] generation failed:", err)
     await db.update(studioOutputs).set({ status: "error" }).where(eq(studioOutputs.id, outputId))
   }
 }

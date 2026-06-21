@@ -77,6 +77,7 @@ import { AudioPlayer } from "./audio-player"
 import type { AudioData } from "@/app/api/studio/audio/route"
 import { DatatableView } from "./datatable-view"
 import { DatatableCustomizeModal } from "./datatable-customize-modal"
+import { DatatableSourcesModal } from "./datatable-sources-modal"
 import type { DatatableData } from "@/app/api/studio/datatable/route"
 import { ReportView } from "./report-view"
 import type { ReportData } from "./report-view"
@@ -228,6 +229,7 @@ export function StudioSidebar({
   const [activeAudio, setActiveAudio] = useState<StudioOutput | null>(null)
   const [activeDatatable, setActiveDatatable] = useState<StudioOutput | null>(null)
   const [datatableModal, setDatatableModal] = useState<{ view: "sources" | "customize"; output: StudioOutput | null } | null>(null)
+  const [datatableSourcesOutput, setDatatableSourcesOutput] = useState<StudioOutput | null>(null)
   const [activeReport, setActiveReport] = useState<StudioOutput | null>(null)
   const [reportModalOpen, setReportModalOpen] = useState(false)
   const [slideViewerOpen, setSlideViewerOpen] = useState(false)
@@ -395,9 +397,25 @@ export function StudioSidebar({
         }
 
         if (readyOutputs.length > 0 || errorIds.length > 0) {
+          if (errorIds.length > 0) {
+            setStudioOutputsList((prev) => {
+              for (const id of errorIds) {
+                const failed = prev.find((o) => o.id === id)
+                if (failed) {
+                  const key = failed.type === "audio" ? "audioError"
+                    : failed.type === "mindmap" ? "mindmapError"
+                    : failed.type === "quiz" ? "quizError"
+                    : failed.type === "flashcards" ? "flashcardsError"
+                    : failed.type === "slidedeck" ? "slidedeckError"
+                    : "mindmapError"
+                  toast.error(tStudio(key as Parameters<typeof tStudio>[0]))
+                }
+              }
+              return prev.filter((o) => !errorIds.includes(o.id))
+            })
+          }
           setStudioOutputsList((prev) => {
-            let next = prev.map((o) => readyOutputs.find((r) => r.id === o.id) ?? o)
-            if (errorIds.length > 0) next = next.filter((o) => !errorIds.includes(o.id))
+            const next = prev.map((o) => readyOutputs.find((r) => r.id === o.id) ?? o)
             return next
           })
 
@@ -2299,6 +2317,49 @@ export function StudioSidebar({
                                       {tStudio("delete")}
                                     </DropdownMenuItem>
                                   </>
+                                ) : item.kind === "datatable" ? (
+                                  <>
+                                    <DropdownMenuItem
+                                      className="whitespace-nowrap"
+                                      onClick={async () => {
+                                        const res = await fetch(`/api/studio/datatable/${item.id}/share`, { method: "POST" })
+                                        if (!res.ok) { toast.error(tStudio("shareError")); return }
+                                        const { token } = (await res.json()) as { token: string }
+                                        const url = `${window.location.origin}/share/${token}`
+                                        if (navigator.share) await navigator.share({ title: item.title, url }).catch(() => undefined)
+                                        else { await navigator.clipboard.writeText(url); toast.success(tStudio("shareCopied")) }
+                                      }}
+                                    >
+                                      <Share2 className="size-4" />
+                                      {tStudio("share")}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      className="whitespace-nowrap"
+                                      onClick={() => {
+                                        setRenamingOutput(studioOutputsList.find((o) => o.id === item.id) ?? null)
+                                        setRenameValue(item.title)
+                                      }}
+                                    >
+                                      <Pencil className="size-4" />
+                                      {tStudio("rename")}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      className="whitespace-nowrap"
+                                      onClick={() =>
+                                        setDatatableSourcesOutput(studioOutputsList.find((o) => o.id === item.id) ?? null)
+                                      }
+                                    >
+                                      <History className="size-4" />
+                                      {tStudio("viewPrompt")}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      className="text-destructive focus:text-destructive whitespace-nowrap"
+                                      onClick={() => handleDeleteStudioOutput(item.id)}
+                                    >
+                                      <Trash2 className="size-4" />
+                                      {tStudio("delete")}
+                                    </DropdownMenuItem>
+                                  </>
                                 ) : item.kind === "report" ? (
                                   <>
                                     <DropdownMenuItem
@@ -2501,6 +2562,14 @@ export function StudioSidebar({
         initialView={datatableModal?.view ?? "customize"}
         defaultLanguage={(datatableModal?.output?.data as DatatableData | null)?.language ?? "de"}
         onGenerate={(options) => generateDatatable(options, datatableModal?.output?.id)}
+      />
+      <DatatableSourcesModal
+        key={datatableSourcesOutput?.id ?? "datatable-sources-closed"}
+        open={!!datatableSourcesOutput}
+        onOpenChange={(open) => { if (!open) setDatatableSourcesOutput(null) }}
+        usedSources={(datatableSourcesOutput?.data as DatatableData | null)?.usedSources ?? []}
+        defaultLanguage={(datatableSourcesOutput?.data as DatatableData | null)?.language ?? "de"}
+        onGenerate={(options) => generateDatatable(options, datatableSourcesOutput?.id)}
       />
       <ReportFormatModal
         open={reportModalOpen}
