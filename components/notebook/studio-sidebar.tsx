@@ -35,6 +35,8 @@ import { devTodo } from "@/lib/dev-todo"
 import { createNote, updateNote, deleteNote } from "@/lib/actions/notes"
 import { exportNoteToGoogleDocs, exportNoteToGoogleSheets } from "@/lib/google-docs-export"
 import { NoteEditor } from "./note-editor"
+import { QuizView } from "./quiz-view"
+import type { QuizData } from "./quiz-view"
 import { toast } from "sonner"
 import type { Note, StudioOutput } from "@/db/schema"
 
@@ -103,7 +105,10 @@ export function StudioSidebar({
   const locale = useLocale()
   const [collapsed, setCollapsed] = useState(false)
   const [notesList, setNotesList] = useState<Note[]>(initialNotes)
+  const [studioOutputsList, setStudioOutputsList] = useState<StudioOutput[]>(initialStudioOutputs)
   const [activeNote, setActiveNote] = useState<Note | null>(null)
+  const [activeQuiz, setActiveQuiz] = useState<StudioOutput | null>(null)
+  const [quizLoading, setQuizLoading] = useState(false)
   const [editTitle, setEditTitle] = useState("")
   const [editContent, setEditContent] = useState("")
   const [isSettingSource, setIsSettingSource] = useState(false)
@@ -111,7 +116,7 @@ export function StudioSidebar({
 
   const outputs: OutputItem[] = [
     ...notesList.map(noteToOutputItem),
-    ...initialStudioOutputs.map((o) => studioOutputToItem(o, tStudio)),
+    ...studioOutputsList.map((o) => studioOutputToItem(o, tStudio)),
   ].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
 
   useEffect(() => {
@@ -150,7 +155,50 @@ export function StudioSidebar({
 
   function handleOutputClick(item: OutputItem) {
     if (item.kind === "note" && item.note) openNoteDetail(item.note)
-    else devTodo(item.kind)
+    else if (item.kind === "quiz") {
+      const output = studioOutputsList.find((o) => o.id === item.id)
+      if (output) openQuiz(output)
+    } else devTodo(item.kind)
+  }
+
+  function openQuiz(output: StudioOutput) {
+    setActiveQuiz(output)
+    setActiveNote(null)
+    setCollapsed(false)
+    onNoteModeChange(true)
+  }
+
+  function closeQuiz() {
+    setActiveQuiz(null)
+    onNoteModeChange(false)
+  }
+
+  async function generateQuiz(focusTopic?: string, outputId?: string) {
+    setQuizLoading(true)
+    try {
+      const res = await fetch("/api/studio/quiz", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notebookId, focusTopic, outputId }),
+      })
+      if (!res.ok) {
+        const { error } = (await res.json()) as { error: string }
+        if (error === "NO_SOURCES") toast.error(tStudio("quizNoSources"))
+        else toast.error(tStudio("quizError"))
+        return
+      }
+      const output = (await res.json()) as StudioOutput
+      if (outputId) {
+        setStudioOutputsList((prev) => prev.map((o) => (o.id === outputId ? output : o)))
+      } else {
+        setStudioOutputsList((prev) => [output, ...prev])
+      }
+      openQuiz(output)
+    } catch {
+      toast.error(tStudio("quizError"))
+    } finally {
+      setQuizLoading(false)
+    }
   }
 
   function scheduleSave(title: string, content: string, noteId: string) {
@@ -306,7 +354,7 @@ export function StudioSidebar({
       <div className="flex h-12 items-center justify-between border-b px-3">
         {!collapsed && (
           <span className="text-sm font-medium">
-            {activeNote ? t("title") : tStudio("title")}
+            {activeNote ? t("title") : activeQuiz ? tStudio("quiz") : tStudio("title")}
           </span>
         )}
         <Button
@@ -318,6 +366,7 @@ export function StudioSidebar({
             else {
               setCollapsed(true)
               if (activeNote) closeNoteDetail()
+              if (activeQuiz) closeQuiz()
             }
           }}
         >
@@ -326,7 +375,34 @@ export function StudioSidebar({
       </div>
 
       {!collapsed && (
-        activeNote ? (
+        activeQuiz ? (
+          /* ── Quiz view ── */
+          <div className="flex flex-1 flex-col overflow-hidden">
+            <div className="flex h-10 shrink-0 items-center justify-between border-b px-2">
+              <Button variant="ghost" size="icon" className="size-7 shrink-0" onClick={closeQuiz}>
+                <ChevronLeft className="size-4" />
+              </Button>
+              <span className="text-xs font-medium">{tStudio("quiz")}</span>
+              <Button variant="ghost" size="sm" className="h-7 text-xs" disabled={quizLoading} onClick={() => generateQuiz()}>
+                {tStudio("quizRegenerate")}
+              </Button>
+            </div>
+            {quizLoading ? (
+              <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
+                {tStudio("quizGenerating")}
+              </div>
+            ) : (
+              <QuizView
+                key={activeQuiz.id}
+                data={activeQuiz.data as QuizData}
+                notebookId={notebookId}
+                outputId={activeQuiz.id}
+                onRegenerate={() => generateQuiz()}
+                onNewQuizFromTopic={(topic, id) => generateQuiz(topic, id)}
+              />
+            )}
+          </div>
+        ) : activeNote ? (
           /* ── Note detail view ── */
           <div className="flex flex-1 flex-col overflow-hidden">
             {/* Sub-header: back + "Aus Chat" badge */}
@@ -403,7 +479,8 @@ export function StudioSidebar({
                     <button
                       key={tool.id}
                       className="flex items-center justify-between rounded-lg border bg-card p-3 text-left transition-colors hover:bg-muted"
-                      onClick={() => devTodo(tool.id)}
+                      disabled={tool.id === "quiz" && quizLoading}
+                      onClick={() => tool.id === "quiz" ? generateQuiz() : devTodo(tool.id)}
                     >
                       <div className="flex items-center gap-2">
                         <Icon className="size-4 text-muted-foreground" />
@@ -491,3 +568,4 @@ export function StudioSidebar({
     </aside>
   )
 }
+

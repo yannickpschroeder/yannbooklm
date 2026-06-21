@@ -62,7 +62,11 @@
     "slidedeck": "Präsentation",
     "mindmap": "Mindmap",
     "datatable": "Datentabelle",
-    "quiz": "Quiz"
+    "quiz": "Quiz",
+    "quizRegenerate": "Neu generieren",
+    "quizGenerating": "Quiz wird generiert…",
+    "quizNoSources": "Keine Quellen verfügbar. Bitte zuerst Quellen hinzufügen.",
+    "quizError": "Fehler beim Generieren des Quiz"
   },
   "notes": {
     "title": "Notizen",

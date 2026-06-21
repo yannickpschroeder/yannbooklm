@@ -62,7 +62,11 @@
     "slidedeck": "Slide Deck",
     "mindmap": "Mind Map",
     "datatable": "Data Table",
-    "quiz": "Quiz"
+    "quiz": "Quiz",
+    "quizRegenerate": "Regenerate",
+    "quizGenerating": "Generating quiz…",
+    "quizNoSources": "No sources available. Please add sources first.",
+    "quizError": "Failed to generate quiz"
   },
   "notes": {
     "title": "Notes",
