@@ -54,7 +54,7 @@ export function MindmapSourcesModal({ open, onOpenChange, usedSources, onGenerat
               </div>
               <button
                 onClick={() => setView("customize")}
-                className="hover:bg-muted absolute right-12 top-4 rounded-sm p-1 opacity-70 hover:opacity-100"
+                className="hover:bg-muted absolute top-4 right-12 -mt-[6px] -mr-[8px] h-[26px] w-[26px] rounded-sm p-1 opacity-70 hover:opacity-100"
                 aria-label={t("mindmapCustomizeAria")}
               >
                 <RefreshCw className="size-4" />
@@ -67,7 +67,10 @@ export function MindmapSourcesModal({ open, onOpenChange, usedSources, onGenerat
                 usedSources.map((s) => (
                   <button
                     key={s.id}
-                    onClick={() => { onOpenChange(false); openSourceById(s.id) }}
+                    onClick={() => {
+                      onOpenChange(false)
+                      openSourceById(s.id)
+                    }}
                     className="bg-muted/50 hover:bg-muted flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors"
                   >
                     {SOURCE_ICONS[s.type] ?? <FileText className="size-3.5" />}

@@ -35,15 +35,15 @@ export function QuizSourcesModal({ open, onOpenChange, usedSources, onGenerate }
   const [focusTopic, setFocusTopic] = useState("")
 
   const countOptions = [
-    { label: t("countFew"),      value: 10 },
+    { label: t("countFew"), value: 10 },
     { label: t("countStandard"), value: 15 },
-    { label: t("countMany"),     value: 25 },
+    { label: t("countMany"), value: 25 },
   ]
 
   const difficultyOptions = [
-    { label: t("diffEasy"),   value: "einfach"   as Difficulty },
-    { label: t("diffMedium"), value: "mittel"    as Difficulty },
-    { label: t("diffHard"),   value: "schwierig" as Difficulty },
+    { label: t("diffEasy"), value: "einfach" as Difficulty },
+    { label: t("diffMedium"), value: "mittel" as Difficulty },
+    { label: t("diffHard"), value: "schwierig" as Difficulty },
   ]
 
   function handleGenerate() {
@@ -69,7 +69,7 @@ export function QuizSourcesModal({ open, onOpenChange, usedSources, onGenerate }
               </div>
               <button
                 onClick={() => setView("customize")}
-                className="absolute right-12 top-4 rounded-sm p-1 opacity-70 hover:opacity-100 hover:bg-muted"
+                className="hover:bg-muted absolute top-4 right-12 -mt-[6px] -mr-[8px] h-[26px] w-[26px] rounded-sm p-1 opacity-70 hover:opacity-100"
                 aria-label={t("customizeAria")}
               >
                 <RefreshCw className="size-4" />
@@ -77,13 +77,16 @@ export function QuizSourcesModal({ open, onOpenChange, usedSources, onGenerate }
             </DialogHeader>
             <div className="flex flex-wrap gap-2 py-2">
               {usedSources.length === 0 ? (
-                <p className="text-sm text-muted-foreground">{t("noSources")}</p>
+                <p className="text-muted-foreground text-sm">{t("noSources")}</p>
               ) : (
                 usedSources.map((s) => (
                   <button
                     key={s.id}
-                    onClick={() => { onOpenChange(false); openSourceById(s.id) }}
-                    className="flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-3 py-1 text-xs hover:bg-muted transition-colors"
+                    onClick={() => {
+                      onOpenChange(false)
+                      openSourceById(s.id)
+                    }}
+                    className="border-border bg-muted/50 hover:bg-muted flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors"
                   >
                     {SOURCE_ICONS[s.type] ?? <FileText className="size-3.5" />}
                     {s.title}
@@ -145,9 +148,11 @@ export function QuizSourcesModal({ open, onOpenChange, usedSources, onGenerate }
                 <p className="mb-2 text-sm font-medium">{t("topicLabel")}</p>
                 <textarea
                   value={focusTopic}
-                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setFocusTopic(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                    setFocusTopic(e.target.value)
+                  }
                   placeholder={t("topicPlaceholder")}
-                  className="min-h-32 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring"
+                  className="border-input bg-background focus:ring-ring min-h-32 w-full rounded-md border px-3 py-2 text-sm outline-none focus:ring-1"
                 />
               </div>
 
