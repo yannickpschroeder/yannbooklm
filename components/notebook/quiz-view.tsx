@@ -154,7 +154,7 @@ export function QuizView({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className={cn("grid gap-4", readOnly ? "grid-cols-1" : "grid-cols-2")}>
           <div>
             <h3 className="mb-2 text-sm font-semibold">Behandelte Themen</h3>
             <ul className="space-y-1">
@@ -163,27 +163,27 @@ export function QuizView({
               ))}
             </ul>
           </div>
-          <div>
-            <h3 className="mb-2 text-sm font-semibold">Weiterlernen</h3>
-            <p className="mb-2 text-xs text-muted-foreground">
-              Wählen Sie unten Themen für die Wiederholung aus und erstellen Sie ein neues Quiz.
-            </p>
-            <div className="flex flex-col gap-1.5">
-              {data.suggestions.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setSelectedSuggestion(s === selectedSuggestion ? null : s)}
-                  className={cn(
-                    "rounded-md border px-3 py-2 text-left text-xs transition-colors",
-                    s === selectedSuggestion
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border hover:bg-muted"
-                  )}
-                >
-                  {s}
-                </button>
-              ))}
-              {!readOnly && (
+          {!readOnly && (
+            <div>
+              <h3 className="mb-2 text-sm font-semibold">Weiterlernen</h3>
+              <p className="mb-2 text-xs text-muted-foreground">
+                Wählen Sie unten Themen für die Wiederholung aus und erstellen Sie ein neues Quiz.
+              </p>
+              <div className="flex flex-col gap-1.5">
+                {data.suggestions.map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => setSelectedSuggestion(s === selectedSuggestion ? null : s)}
+                    className={cn(
+                      "rounded-md border px-3 py-2 text-left text-xs transition-colors",
+                      s === selectedSuggestion
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border hover:bg-muted"
+                    )}
+                  >
+                    {s}
+                  </button>
+                ))}
                 <Button
                   size="sm"
                   className="mt-1"
@@ -192,9 +192,9 @@ export function QuizView({
                 >
                   Quiz erstellen
                 </Button>
-              )}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         <div className="flex gap-2 border-t pt-4">
