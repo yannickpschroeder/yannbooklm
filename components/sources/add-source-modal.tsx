@@ -19,10 +19,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { deleteSource } from "@/lib/actions/sources"
 import { devTodo } from "@/lib/dev-todo"
+import { openDrivePicker, downloadDriveFile } from "@/lib/google-drive-picker"
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024
 
-type View = "pick" | "pdf-uploading" | "url-input" | "url-processing" | "text-input" | "text-processing"
+type View = "pick" | "pdf-uploading" | "url-input" | "url-processing" | "text-input" | "text-processing" | "drive-downloading"
 
 const TEXT_MAX_CHARS = 10_000
 
@@ -123,7 +124,7 @@ export function AddSourceModal({
   const isUploading = view === "pdf-uploading" && progress < 100
   const isEmbedding =
     (view === "pdf-uploading" && progress >= 100) || view === "url-processing" || view === "text-processing"
-  const isProcessing = isUploading || isEmbedding
+  const isProcessing = isUploading || isEmbedding || view === "drive-downloading"
   const canMinimize = view !== "text-processing" && isEmbedding && sourceCreated
 
   async function handleCancel() {
@@ -242,6 +243,23 @@ export function AddSourceModal({
     },
     [notebookId] // eslint-disable-line react-hooks/exhaustive-deps
   )
+
+  // ── Drive ────────────────────────────────────────────────────────────────────
+
+  async function handleDrive() {
+    try {
+      const picked = await openDrivePicker()
+      if (!picked) return
+      setView("drive-downloading")
+      const file = await downloadDriveFile(picked)
+      setView("pick")
+      await handleFile(file)
+    } catch (err) {
+      console.error(err)
+      toast.error(err instanceof Error ? err.message : "Drive-Fehler")
+      setView("pick")
+    }
+  }
 
   // ── URL ──────────────────────────────────────────────────────────────────────
 
@@ -468,11 +486,16 @@ export function AddSourceModal({
               <Button
                 variant="outline"
                 className="flex-col gap-1.5 h-auto py-4 whitespace-normal text-center"
-                disabled
-                title="Noch nicht verfügbar"
-                onClick={() => devTodo("Drive")}
+                onClick={handleDrive}
               >
-                <span className="text-xl leading-none shrink-0">▲</span>
+                <svg viewBox="0 0 87.3 78" className="size-5 shrink-0" aria-hidden>
+                  <path d="M6.6 66.85l3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8H0a7.3 7.3 0 003.3 6.65z" fill="#0066DA"/>
+                  <path d="M43.65 25L29.9 1.2a8 8 0 00-3.3 3.3L.45 51.35A7.3 7.3 0 000 53.7h27.5z" fill="#00AC47"/>
+                  <path d="M73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25A7.3 7.3 0 0087.3 53.7H59.8l5.9 11.1z" fill="#EA4335"/>
+                  <path d="M43.65 25L57.4 1.2A7.9 7.9 0 0053.65 0H33.65a7.9 7.9 0 00-3.75 1.2z" fill="#00832D"/>
+                  <path d="M59.8 53.7H27.5L13.75 77.8c1.35.8 2.9 1.2 4.5 1.2h50.6c1.6 0 3.15-.4 4.5-1.2z" fill="#2684FC"/>
+                  <path d="M73.4 26.45l-13.5-23.4c-.8-1.4-1.95-2.5-3.3-3.3L43.65 25l16.15 28.7H87.3a7.3 7.3 0 00-.45-2.35z" fill="#FFBA00"/>
+                </svg>
                 <span className="text-xs leading-tight">Drive</span>
               </Button>
               <Button
@@ -662,6 +685,21 @@ export function AddSourceModal({
                 ) : (
                   <div className="h-full w-full animate-pulse bg-primary" />
                 )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Drive downloading ────────────────────────────────────────────── */}
+        {view === "drive-downloading" && (
+          <div className="flex flex-col items-center gap-4 py-6">
+            <Loader2 className="size-10 animate-spin text-primary" />
+            <div className="w-full space-y-2 text-center">
+              <div className="flex items-center justify-between text-sm">
+                <span className="font-medium">Datei wird aus Google Drive geladen…</span>
+              </div>
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                <div className="h-full w-full animate-pulse bg-primary" />
               </div>
             </div>
           </div>

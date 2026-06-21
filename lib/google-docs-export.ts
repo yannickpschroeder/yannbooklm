@@ -2,21 +2,6 @@
 
 import { marked } from "marked"
 
-declare global {
-  interface Window {
-    google?: {
-      accounts: {
-        oauth2: {
-          initTokenClient(config: {
-            client_id: string
-            scope: string
-            callback: (response: { access_token?: string; error?: string }) => void
-          }): { requestAccessToken(): void }
-        }
-      }
-    }
-  }
-}
 
 const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file"
 const GIS_SRC = "https://accounts.google.com/gsi/client"
