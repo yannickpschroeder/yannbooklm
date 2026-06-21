@@ -8,6 +8,37 @@ const { auth } = NextAuth(authConfig)
 const handleI18nRouting = createMiddleware(routing)
 
 export default auth((req) => {
+  const EXPECTED_USER = process.env.BASIC_AUTH_USER ?? ""
+  const EXPECTED_PWD = process.env.BASIC_AUTH_PASSWORD ?? ""
+
+  if (EXPECTED_USER || EXPECTED_PWD) {
+    const basicAuth = req.headers.get("authorization")
+
+    if (!basicAuth) {
+      return new NextResponse("Zugriff verweigert.", {
+        status: 401,
+        headers: { "WWW-Authenticate": 'Basic realm="Geschützter Bereich"' },
+      })
+    }
+
+    // Der Header enthält "Basic <base64-string>", wir isolieren den String
+    const authValue = basicAuth.split(" ")[1]
+    if (!authValue) {
+      return new NextResponse("Ungültiges Auth-Format.", { status: 400 })
+    }
+
+    // Dekodieren von Base64 in "benutzername:passwort"
+    const [user, pwd] = atob(authValue).split(":")
+
+    // Wenn die Daten NICHT übereinstimmen, fordern wir erneut Zugangsdaten an
+    if (user !== EXPECTED_USER || pwd !== EXPECTED_PWD) {
+      return new NextResponse("Zugriff verweigert.", {
+        status: 401,
+        headers: { "WWW-Authenticate": 'Basic realm="Geschützter Bereich"' },
+      })
+    }
+  }
+
   const pathname = req.nextUrl.pathname
   const segments = pathname.split("/")
   const locale = segments[1] === "en" ? "en" : "de"
