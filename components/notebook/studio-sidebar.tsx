@@ -22,6 +22,7 @@ import {
   FileDown,
   Play,
   RefreshCw,
+  SquarePen,
   Maximize2,
   ThumbsUp,
   ThumbsDown,
@@ -232,7 +233,10 @@ export function StudioSidebar({
   const [activeMindmap, setActiveMindmap] = useState<StudioOutput | null>(null)
   const [activeAudio, setActiveAudio] = useState<StudioOutput | null>(null)
   const [activeDatatable, setActiveDatatable] = useState<StudioOutput | null>(null)
-  const [datatableModal, setDatatableModal] = useState<{ view: "sources" | "customize"; output: StudioOutput | null } | null>(null)
+  const [datatableModal, setDatatableModal] = useState<{
+    view: "sources" | "customize"
+    output: StudioOutput | null
+  } | null>(null)
   const [datatableSourcesOutput, setDatatableSourcesOutput] = useState<StudioOutput | null>(null)
   const [activeReport, setActiveReport] = useState<StudioOutput | null>(null)
   const [reportModalOpen, setReportModalOpen] = useState(false)
@@ -275,7 +279,12 @@ export function StudioSidebar({
       const { title, content, sourceMessageId } = (
         e as CustomEvent<{ title?: string; content: string; sourceMessageId?: string }>
       ).detail
-      const note = await createNote(notebookId, title ?? t("defaultTitle"), content, sourceMessageId)
+      const note = await createNote(
+        notebookId,
+        title ?? t("defaultTitle"),
+        content,
+        sourceMessageId
+      )
       if (!note) return
       setNotesList((prev) => [note, ...prev])
       toast.success(t("createSuccess"))
@@ -366,9 +375,18 @@ export function StudioSidebar({
     onNoteModeChangeRef.current = onNoteModeChange
   }, [onNoteModeChange])
   // outputId → what to do when ready
-  const pendingActionsRef = useRef<Map<string, "open-quiz" | "create-slides" | "open-flashcards" | "open-mindmap" | "open-audio" | "open-datatable" | "open-report">>(
-    new Map()
-  )
+  const pendingActionsRef = useRef<
+    Map<
+      string,
+      | "open-quiz"
+      | "create-slides"
+      | "open-flashcards"
+      | "open-mindmap"
+      | "open-audio"
+      | "open-datatable"
+      | "open-report"
+    >
+  >(new Map())
   const processedIdsRef = useRef<Set<string>>(new Set())
   const generatingIdsRef = useRef<string[]>([])
 
@@ -415,12 +433,18 @@ export function StudioSidebar({
               for (const id of errorIds) {
                 const failed = prev.find((o) => o.id === id)
                 if (failed) {
-                  const key = failed.type === "audio" ? "audioError"
-                    : failed.type === "mindmap" ? "mindmapError"
-                    : failed.type === "quiz" ? "quizError"
-                    : failed.type === "flashcards" ? "flashcardsError"
-                    : failed.type === "slidedeck" ? "slidedeckError"
-                    : "mindmapError"
+                  const key =
+                    failed.type === "audio"
+                      ? "audioError"
+                      : failed.type === "mindmap"
+                        ? "mindmapError"
+                        : failed.type === "quiz"
+                          ? "quizError"
+                          : failed.type === "flashcards"
+                            ? "flashcardsError"
+                            : failed.type === "slidedeck"
+                              ? "slidedeckError"
+                              : "mindmapError"
                   toast.error(tStudio(key as Parameters<typeof tStudio>[0]))
                 }
               }
@@ -661,14 +685,23 @@ export function StudioSidebar({
   async function handleRevise(instructions: Record<number, string>) {
     if (!activeSlidedeck) return
     setIsRevising(true)
-    const slideData = activeSlidedeck.data as SlideData & { language?: string; format?: string; length?: string }
+    const slideData = activeSlidedeck.data as SlideData & {
+      language?: string
+      format?: string
+      length?: string
+    }
     await generateSlidedeck(
       {
         language: slideData.language ?? "de",
         format: (slideData.format as "detailed" | "presenter") ?? "detailed",
         length: (slideData.length as "short" | "standard") ?? "standard",
-        revisionInstructions: Object.fromEntries(Object.entries(instructions).map(([k, v]) => [k, v])),
-        existingSlides: (slideData as SlideData).slides.map((s) => ({ title: s.title, bullets: s.bullets })),
+        revisionInstructions: Object.fromEntries(
+          Object.entries(instructions).map(([k, v]) => [k, v])
+        ),
+        existingSlides: (slideData as SlideData).slides.map((s) => ({
+          title: s.title,
+          bullets: s.bullets,
+        })),
       },
       activeSlidedeck.id
     )
@@ -679,7 +712,11 @@ export function StudioSidebar({
 
   async function saveSlideEdit() {
     if (editingSlideIndex === null || !editSlide || !activeSlidedeck) return
-    const slideData = activeSlidedeck.data as SlideData & { usedSources?: SlidedeckUsedSource[]; language?: string; slidesUrl?: string }
+    const slideData = activeSlidedeck.data as SlideData & {
+      usedSources?: SlidedeckUsedSource[]
+      language?: string
+      slidesUrl?: string
+    }
     const newSlides = slideData.slides.map((s, i) =>
       i === editingSlideIndex
         ? { ...s, title: editSlide.title, bullets: editSlide.bullets.filter((b) => b.trim()) }
@@ -689,7 +726,9 @@ export function StudioSidebar({
     const updatedOutput = { ...activeSlidedeck, data: newData }
 
     setActiveSlidedeck(updatedOutput)
-    setStudioOutputsList((prev) => prev.map((o) => (o.id === activeSlidedeck.id ? updatedOutput : o)))
+    setStudioOutputsList((prev) =>
+      prev.map((o) => (o.id === activeSlidedeck.id ? updatedOutput : o))
+    )
     setEditingSlideIndex(null)
     setEditSlide(null)
 
@@ -824,12 +863,23 @@ export function StudioSidebar({
     }
   }
 
-  async function generateReport(format: string, language: string, customPrompt?: string, existingOutputId?: string) {
+  async function generateReport(
+    format: string,
+    language: string,
+    customPrompt?: string,
+    existingOutputId?: string
+  ) {
     try {
       const res = await fetch("/api/studio/report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ notebookId, format, language, customPrompt, outputId: existingOutputId }),
+        body: JSON.stringify({
+          notebookId,
+          format,
+          language,
+          customPrompt,
+          outputId: existingOutputId,
+        }),
       })
       if (!res.ok) {
         const { error } = (await res.json()) as { error: string }
@@ -839,7 +889,9 @@ export function StudioSidebar({
       const { outputId } = (await res.json()) as { outputId: string }
       const placeholder = makeGeneratingPlaceholder(outputId, "report")
       if (existingOutputId) {
-        setStudioOutputsList((prev) => prev.map((o) => (o.id === existingOutputId ? placeholder : o)))
+        setStudioOutputsList((prev) =>
+          prev.map((o) => (o.id === existingOutputId ? placeholder : o))
+        )
         if (activeReportRef.current?.id === existingOutputId) setActiveReport(placeholder)
       } else {
         pendingActionsRef.current.set(outputId, "open-report")
@@ -862,7 +914,9 @@ export function StudioSidebar({
       })
       if (!res.ok) {
         const { error } = (await res.json()) as { error: string }
-        toast.error(error === "NO_SOURCES" ? tStudio("datatableNoSources") : tStudio("datatableError"))
+        toast.error(
+          error === "NO_SOURCES" ? tStudio("datatableNoSources") : tStudio("datatableError")
+        )
         return
       }
       const { outputId } = (await res.json()) as { outputId: string }
@@ -1139,12 +1193,17 @@ export function StudioSidebar({
   async function handleRenameStudioOutput() {
     if (!renamingOutput || !renameValue.trim()) return
     const apiBase =
-      renamingOutput.type === "slidedeck" ? "slidedeck"
-      : renamingOutput.type === "flashcards" ? "flashcards"
-      : renamingOutput.type === "mindmap" ? "mindmap"
-      : renamingOutput.type === "datatable" ? "datatable"
-      : renamingOutput.type === "report" ? "report"
-      : "quiz"
+      renamingOutput.type === "slidedeck"
+        ? "slidedeck"
+        : renamingOutput.type === "flashcards"
+          ? "flashcards"
+          : renamingOutput.type === "mindmap"
+            ? "mindmap"
+            : renamingOutput.type === "datatable"
+              ? "datatable"
+              : renamingOutput.type === "report"
+                ? "report"
+                : "quiz"
     const res = await fetch(`/api/studio/${apiBase}/${renamingOutput.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -1174,12 +1233,17 @@ export function StudioSidebar({
     if (activeMindmap?.id === outputId) closeMindmap()
     if (activeDatatable?.id === outputId) closeDatatable()
     const apiBase =
-      output?.type === "slidedeck" ? "slidedeck"
-      : output?.type === "flashcards" ? "flashcards"
-      : output?.type === "mindmap" ? "mindmap"
-      : output?.type === "datatable" ? "datatable"
-      : output?.type === "report" ? "report"
-      : "quiz"
+      output?.type === "slidedeck"
+        ? "slidedeck"
+        : output?.type === "flashcards"
+          ? "flashcards"
+          : output?.type === "mindmap"
+            ? "mindmap"
+            : output?.type === "datatable"
+              ? "datatable"
+              : output?.type === "report"
+                ? "report"
+                : "quiz"
     await fetch(`/api/studio/${apiBase}/${outputId}`, { method: "DELETE" })
   }
 
@@ -1196,7 +1260,7 @@ export function StudioSidebar({
       <aside
         className={cn(
           "bg-background flex flex-col border-l transition-all duration-200",
-          collapsed ? "w-12 shrink-0" : noteMode ? "flex-1 min-w-0" : "w-96 shrink-0"
+          collapsed ? "w-12 shrink-0" : noteMode ? "min-w-0 flex-1" : "w-96 shrink-0"
         )}
       >
         {/* Header */}
@@ -1480,7 +1544,7 @@ export function StudioSidebar({
                           className="whitespace-nowrap"
                           onClick={() => setRevisionModalOpen(true)}
                         >
-                          <RefreshCw className="size-4" />
+                          <SquarePen className="size-4" />
                           {tStudio("slidedeckRevise")}
                         </DropdownMenuItem>
                         <DropdownMenuItem
@@ -1525,7 +1589,7 @@ export function StudioSidebar({
                           <div
                             key={i}
                             className={cn(
-                              "group relative rounded-xl border bg-card shadow-sm",
+                              "group bg-card relative rounded-xl border shadow-sm",
                               isEditing ? "p-4" : "p-4",
                               !isEditing && i === 0 && "text-center"
                             )}
@@ -1534,32 +1598,36 @@ export function StudioSidebar({
                             {!isEditing && (
                               <button
                                 onClick={() => startEditSlide(i, slide)}
-                                className="absolute right-2 top-2 rounded p-1 opacity-0 transition-opacity hover:bg-muted group-hover:opacity-100"
+                                className="hover:bg-muted absolute top-2 right-2 rounded p-1 opacity-0 transition-opacity group-hover:opacity-100"
                                 title={tCommon("edit")}
                               >
-                                <Pencil className="size-3 text-muted-foreground" />
+                                <Pencil className="text-muted-foreground size-3" />
                               </button>
                             )}
 
                             {/* Slide number */}
-                            <p className="mb-1.5 text-[10px] font-medium text-muted-foreground/60">{i + 1}</p>
+                            <p className="text-muted-foreground/60 mb-1.5 text-[10px] font-medium">
+                              {i + 1}
+                            </p>
 
                             {isEditing && editSlide ? (
                               /* ── Edit mode ── */
                               <div className="space-y-3">
                                 <input
-                                  className="w-full rounded border bg-background px-2 py-1 text-sm font-semibold outline-none focus:ring-1 focus:ring-primary"
+                                  className="bg-background focus:ring-primary w-full rounded border px-2 py-1 text-sm font-semibold outline-none focus:ring-1"
                                   value={editSlide.title}
-                                  onChange={(e) => setEditSlide({ ...editSlide, title: e.target.value })}
+                                  onChange={(e) =>
+                                    setEditSlide({ ...editSlide, title: e.target.value })
+                                  }
                                   placeholder={tStudio("slidedeckEditTitlePlaceholder")}
                                   autoFocus
                                 />
                                 <div className="space-y-1.5">
                                   {editSlide.bullets.map((b, j) => (
                                     <div key={j} className="flex items-center gap-1.5">
-                                      <span className="mt-0.5 size-1 shrink-0 rounded-full bg-muted-foreground/50" />
+                                      <span className="bg-muted-foreground/50 mt-0.5 size-1 shrink-0 rounded-full" />
                                       <input
-                                        className="min-w-0 flex-1 rounded border bg-background px-2 py-0.5 text-xs outline-none focus:ring-1 focus:ring-primary"
+                                        className="bg-background focus:ring-primary min-w-0 flex-1 rounded border px-2 py-0.5 text-xs outline-none focus:ring-1"
                                         value={b}
                                         onChange={(e) => {
                                           const next = [...editSlide.bullets]
@@ -1572,7 +1640,11 @@ export function StudioSidebar({
                                             const next = [...editSlide.bullets]
                                             next.splice(j + 1, 0, "")
                                             setEditSlide({ ...editSlide, bullets: next })
-                                          } else if (e.key === "Backspace" && b === "" && editSlide.bullets.length > 1) {
+                                          } else if (
+                                            e.key === "Backspace" &&
+                                            b === "" &&
+                                            editSlide.bullets.length > 1
+                                          ) {
                                             e.preventDefault()
                                             const next = editSlide.bullets.filter((_, k) => k !== j)
                                             setEditSlide({ ...editSlide, bullets: next })
@@ -1580,41 +1652,75 @@ export function StudioSidebar({
                                         }}
                                       />
                                       <button
-                                        onClick={() => setEditSlide({ ...editSlide, bullets: editSlide.bullets.filter((_, k) => k !== j) })}
-                                        className="shrink-0 rounded p-0.5 hover:bg-muted"
+                                        onClick={() =>
+                                          setEditSlide({
+                                            ...editSlide,
+                                            bullets: editSlide.bullets.filter((_, k) => k !== j),
+                                          })
+                                        }
+                                        className="hover:bg-muted shrink-0 rounded p-0.5"
                                         tabIndex={-1}
                                       >
-                                        <X className="size-3 text-muted-foreground" />
+                                        <X className="text-muted-foreground size-3" />
                                       </button>
                                     </div>
                                   ))}
                                   <button
-                                    onClick={() => setEditSlide({ ...editSlide, bullets: [...editSlide.bullets, ""] })}
-                                    className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
+                                    onClick={() =>
+                                      setEditSlide({
+                                        ...editSlide,
+                                        bullets: [...editSlide.bullets, ""],
+                                      })
+                                    }
+                                    className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-[11px]"
                                   >
-                                    <Plus className="size-3" />{tStudio("slidedeckAddBullet")}
+                                    <Plus className="size-3" />
+                                    {tStudio("slidedeckAddBullet")}
                                   </button>
                                 </div>
                                 <div className="flex justify-end gap-2 pt-1">
-                                  <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={cancelEditSlide}>{tCommon("cancel")}</Button>
-                                  <Button size="sm" className="h-6 text-xs" onClick={() => void saveSlideEdit()}>{tCommon("save")}</Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 text-xs"
+                                    onClick={cancelEditSlide}
+                                  >
+                                    {tCommon("cancel")}
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    className="h-6 text-xs"
+                                    onClick={() => void saveSlideEdit()}
+                                  >
+                                    {tCommon("save")}
+                                  </Button>
                                 </div>
                               </div>
                             ) : (
                               /* ── View mode ── */
                               <>
-                                <p className={cn("font-semibold leading-snug", i === 0 ? "text-base" : "mb-2 text-sm")}>
+                                <p
+                                  className={cn(
+                                    "leading-snug font-semibold",
+                                    i === 0 ? "text-base" : "mb-2 text-sm"
+                                  )}
+                                >
                                   {slide.title}
                                 </p>
                                 {i === 0
                                   ? slide.bullets.length > 0 && (
-                                      <p className="mt-1 text-xs text-muted-foreground">{slide.bullets.join(" · ")}</p>
+                                      <p className="text-muted-foreground mt-1 text-xs">
+                                        {slide.bullets.join(" · ")}
+                                      </p>
                                     )
                                   : slide.bullets.length > 0 && (
                                       <ul className="space-y-1.5">
                                         {slide.bullets.map((b, j) => (
-                                          <li key={j} className="flex items-start gap-2 text-xs text-muted-foreground">
-                                            <span className="mt-1.5 size-1 shrink-0 rounded-full bg-muted-foreground/50" />
+                                          <li
+                                            key={j}
+                                            className="text-muted-foreground flex items-start gap-2 text-xs"
+                                          >
+                                            <span className="bg-muted-foreground/50 mt-1.5 size-1 shrink-0 rounded-full" />
                                             {b}
                                           </li>
                                         ))}
@@ -1684,10 +1790,7 @@ export function StudioSidebar({
                 </div>
               ) : (
                 <div className="flex-1 overflow-y-auto">
-                  <AudioPlayer
-                    outputId={activeAudio.id}
-                    data={activeAudio.data as AudioData}
-                  />
+                  <AudioPlayer outputId={activeAudio.id} data={activeAudio.data as AudioData} />
                 </div>
               )}
             </div>
@@ -1737,7 +1840,13 @@ export function StudioSidebar({
             /* ── Report detail view ── */
             <div className="flex flex-1 flex-col overflow-hidden">
               <div className="flex h-10 shrink-0 items-center justify-between border-b px-2">
-                <Button variant="ghost" size="icon" className="size-7 shrink-0" aria-label={tCommon("back")} onClick={closeReport}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-7 shrink-0"
+                  aria-label={tCommon("back")}
+                  onClick={closeReport}
+                >
                   <ChevronLeft className="size-4" />
                 </Button>
                 <span className="truncate px-1 text-xs font-medium">
@@ -1751,12 +1860,23 @@ export function StudioSidebar({
                     <DropdownMenuItem
                       className="whitespace-nowrap"
                       onClick={async () => {
-                        const res = await fetch(`/api/studio/report/${activeReport.id}/share`, { method: "POST" })
-                        if (!res.ok) { toast.error(tStudio("shareError")); return }
+                        const res = await fetch(`/api/studio/report/${activeReport.id}/share`, {
+                          method: "POST",
+                        })
+                        if (!res.ok) {
+                          toast.error(tStudio("shareError"))
+                          return
+                        }
                         const { token } = (await res.json()) as { token: string }
                         const url = `${window.location.origin}/share/${token}`
-                        if (navigator.share) await navigator.share({ title: activeReport.title ?? undefined, url }).catch(() => undefined)
-                        else { await navigator.clipboard.writeText(url); toast.success(tStudio("shareCopied")) }
+                        if (navigator.share)
+                          await navigator
+                            .share({ title: activeReport.title ?? undefined, url })
+                            .catch(() => undefined)
+                        else {
+                          await navigator.clipboard.writeText(url)
+                          toast.success(tStudio("shareCopied"))
+                        }
                       }}
                     >
                       <Share2 className="size-4" />
@@ -1778,7 +1898,10 @@ export function StudioSidebar({
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       className="text-destructive focus:text-destructive whitespace-nowrap"
-                      onClick={() => { handleDeleteStudioOutput(activeReport.id); closeReport() }}
+                      onClick={() => {
+                        handleDeleteStudioOutput(activeReport.id)
+                        closeReport()
+                      }}
                     >
                       <Trash2 className="size-4" />
                       {tStudio("delete")}
@@ -1832,7 +1955,9 @@ export function StudioSidebar({
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       className="whitespace-nowrap"
-                      onClick={() => setDatatableModal({ view: "customize", output: activeDatatable })}
+                      onClick={() =>
+                        setDatatableModal({ view: "customize", output: activeDatatable })
+                      }
                     >
                       <History className="size-4" />
                       {tStudio("viewPrompt")}
@@ -1948,9 +2073,11 @@ export function StudioSidebar({
                         )}
                         onClick={() => {
                           if (activeSourceCount === 0) {
-                            window.dispatchEvent(new CustomEvent("notebook:ask", {
-                              detail: { text: tStudio(tool.labelKey), force: true },
-                            }))
+                            window.dispatchEvent(
+                              new CustomEvent("notebook:ask", {
+                                detail: { text: tStudio(tool.labelKey), force: true },
+                              })
+                            )
                             return
                           }
                           if (tool.id === "quiz") generateQuiz()
@@ -1958,7 +2085,8 @@ export function StudioSidebar({
                           else if (tool.id === "flashcards") generateFlashcards()
                           else if (tool.id === "mindmap") generateMindmap()
                           else if (tool.id === "audio") generateAudio()
-                          else if (tool.id === "datatable") setDatatableModal({ view: "customize", output: null })
+                          else if (tool.id === "datatable")
+                            setDatatableModal({ view: "customize", output: null })
                           else if (tool.id === "report") setReportModalOpen(true)
                           else devTodo("unknown-tool")
                         }}
@@ -2077,12 +2205,24 @@ export function StudioSidebar({
                                     <DropdownMenuItem
                                       className="whitespace-nowrap"
                                       onClick={async () => {
-                                        const res = await fetch(`/api/studio/audio/${item.id}/share`, { method: "POST" })
-                                        if (!res.ok) { toast.error(tStudio("shareError")); return }
+                                        const res = await fetch(
+                                          `/api/studio/audio/${item.id}/share`,
+                                          { method: "POST" }
+                                        )
+                                        if (!res.ok) {
+                                          toast.error(tStudio("shareError"))
+                                          return
+                                        }
                                         const { token } = (await res.json()) as { token: string }
                                         const url = `${window.location.origin}/share/${token}`
-                                        if (navigator.share) await navigator.share({ title: item.title, url }).catch(() => undefined)
-                                        else { await navigator.clipboard.writeText(url); toast.success(tStudio("shareCopied")) }
+                                        if (navigator.share)
+                                          await navigator
+                                            .share({ title: item.title, url })
+                                            .catch(() => undefined)
+                                        else {
+                                          await navigator.clipboard.writeText(url)
+                                          toast.success(tStudio("shareCopied"))
+                                        }
                                       }}
                                     >
                                       <Share2 className="size-4" />
@@ -2091,7 +2231,9 @@ export function StudioSidebar({
                                     <DropdownMenuItem
                                       className="whitespace-nowrap"
                                       onClick={() => {
-                                        setRenamingOutput(studioOutputsList.find((o) => o.id === item.id) ?? null)
+                                        setRenamingOutput(
+                                          studioOutputsList.find((o) => o.id === item.id) ?? null
+                                        )
                                         setRenameValue(item.title)
                                       }}
                                     >
@@ -2119,7 +2261,11 @@ export function StudioSidebar({
                                     </DropdownMenuItem>
                                     <DropdownMenuItem
                                       className="whitespace-nowrap"
-                                      onClick={() => setAudioModalOutput(studioOutputsList.find((o) => o.id === item.id) ?? null)}
+                                      onClick={() =>
+                                        setAudioModalOutput(
+                                          studioOutputsList.find((o) => o.id === item.id) ?? null
+                                        )
+                                      }
                                     >
                                       <History className="size-4" />
                                       {tStudio("viewPrompt")}
@@ -2220,7 +2366,9 @@ export function StudioSidebar({
                                           <DropdownMenuItem
                                             className="whitespace-nowrap"
                                             onClick={() => {
-                                              const o = studioOutputsList.find((x) => x.id === item.id)
+                                              const o = studioOutputsList.find(
+                                                (x) => x.id === item.id
+                                              )
                                               if (o?.data) {
                                                 openSlidedeck(o)
                                                 setSlideViewerIndex(0)
@@ -2234,11 +2382,16 @@ export function StudioSidebar({
                                           <DropdownMenuItem
                                             className="whitespace-nowrap"
                                             onClick={() => {
-                                              const o = studioOutputsList.find((x) => x.id === item.id)
-                                              if (o) { openSlidedeck(o); setRevisionModalOpen(true) }
+                                              const o = studioOutputsList.find(
+                                                (x) => x.id === item.id
+                                              )
+                                              if (o) {
+                                                openSlidedeck(o)
+                                                setRevisionModalOpen(true)
+                                              }
                                             }}
                                           >
-                                            <RefreshCw className="size-4" />
+                                            <SquarePen className="size-4" />
                                             {tStudio("slidedeckRevise")}
                                           </DropdownMenuItem>
                                           <DropdownMenuItem
@@ -2270,12 +2423,20 @@ export function StudioSidebar({
                                     <DropdownMenuItem
                                       className="whitespace-nowrap"
                                       onClick={async () => {
-                                        const res = await fetch(`/api/studio/mindmap/${item.id}/share`, { method: "POST" })
-                                        if (!res.ok) { toast.error(tStudio("shareError")); return }
+                                        const res = await fetch(
+                                          `/api/studio/mindmap/${item.id}/share`,
+                                          { method: "POST" }
+                                        )
+                                        if (!res.ok) {
+                                          toast.error(tStudio("shareError"))
+                                          return
+                                        }
                                         const { token } = (await res.json()) as { token: string }
                                         const url = `${window.location.origin}/share/${token}`
                                         if (navigator.share) {
-                                          await navigator.share({ title: item.title, url }).catch(() => undefined)
+                                          await navigator
+                                            .share({ title: item.title, url })
+                                            .catch(() => undefined)
                                         } else {
                                           await navigator.clipboard.writeText(url)
                                           toast.success(tStudio("shareCopied"))
@@ -2288,7 +2449,9 @@ export function StudioSidebar({
                                     <DropdownMenuItem
                                       className="whitespace-nowrap"
                                       onClick={() => {
-                                        setRenamingOutput(studioOutputsList.find((o) => o.id === item.id) ?? null)
+                                        setRenamingOutput(
+                                          studioOutputsList.find((o) => o.id === item.id) ?? null
+                                        )
                                         setRenameValue(item.title)
                                       }}
                                     >
@@ -2298,7 +2461,9 @@ export function StudioSidebar({
                                     <DropdownMenuItem
                                       className="whitespace-nowrap"
                                       onClick={() =>
-                                        setMindmapModalOutput(studioOutputsList.find((o) => o.id === item.id) ?? null)
+                                        setMindmapModalOutput(
+                                          studioOutputsList.find((o) => o.id === item.id) ?? null
+                                        )
                                       }
                                     >
                                       <History className="size-4" />
@@ -2376,12 +2541,24 @@ export function StudioSidebar({
                                     <DropdownMenuItem
                                       className="whitespace-nowrap"
                                       onClick={async () => {
-                                        const res = await fetch(`/api/studio/datatable/${item.id}/share`, { method: "POST" })
-                                        if (!res.ok) { toast.error(tStudio("shareError")); return }
+                                        const res = await fetch(
+                                          `/api/studio/datatable/${item.id}/share`,
+                                          { method: "POST" }
+                                        )
+                                        if (!res.ok) {
+                                          toast.error(tStudio("shareError"))
+                                          return
+                                        }
                                         const { token } = (await res.json()) as { token: string }
                                         const url = `${window.location.origin}/share/${token}`
-                                        if (navigator.share) await navigator.share({ title: item.title, url }).catch(() => undefined)
-                                        else { await navigator.clipboard.writeText(url); toast.success(tStudio("shareCopied")) }
+                                        if (navigator.share)
+                                          await navigator
+                                            .share({ title: item.title, url })
+                                            .catch(() => undefined)
+                                        else {
+                                          await navigator.clipboard.writeText(url)
+                                          toast.success(tStudio("shareCopied"))
+                                        }
                                       }}
                                     >
                                       <Share2 className="size-4" />
@@ -2390,7 +2567,9 @@ export function StudioSidebar({
                                     <DropdownMenuItem
                                       className="whitespace-nowrap"
                                       onClick={() => {
-                                        setRenamingOutput(studioOutputsList.find((o) => o.id === item.id) ?? null)
+                                        setRenamingOutput(
+                                          studioOutputsList.find((o) => o.id === item.id) ?? null
+                                        )
                                         setRenameValue(item.title)
                                       }}
                                     >
@@ -2400,7 +2579,9 @@ export function StudioSidebar({
                                     <DropdownMenuItem
                                       className="whitespace-nowrap"
                                       onClick={() =>
-                                        setDatatableSourcesOutput(studioOutputsList.find((o) => o.id === item.id) ?? null)
+                                        setDatatableSourcesOutput(
+                                          studioOutputsList.find((o) => o.id === item.id) ?? null
+                                        )
                                       }
                                     >
                                       <History className="size-4" />
@@ -2419,12 +2600,24 @@ export function StudioSidebar({
                                     <DropdownMenuItem
                                       className="whitespace-nowrap"
                                       onClick={async () => {
-                                        const res = await fetch(`/api/studio/report/${item.id}/share`, { method: "POST" })
-                                        if (!res.ok) { toast.error(tStudio("shareError")); return }
+                                        const res = await fetch(
+                                          `/api/studio/report/${item.id}/share`,
+                                          { method: "POST" }
+                                        )
+                                        if (!res.ok) {
+                                          toast.error(tStudio("shareError"))
+                                          return
+                                        }
                                         const { token } = (await res.json()) as { token: string }
                                         const url = `${window.location.origin}/share/${token}`
-                                        if (navigator.share) await navigator.share({ title: item.title, url }).catch(() => undefined)
-                                        else { await navigator.clipboard.writeText(url); toast.success(tStudio("shareCopied")) }
+                                        if (navigator.share)
+                                          await navigator
+                                            .share({ title: item.title, url })
+                                            .catch(() => undefined)
+                                        else {
+                                          await navigator.clipboard.writeText(url)
+                                          toast.success(tStudio("shareCopied"))
+                                        }
                                       }}
                                     >
                                       <Share2 className="size-4" />
@@ -2433,7 +2626,9 @@ export function StudioSidebar({
                                     <DropdownMenuItem
                                       className="whitespace-nowrap"
                                       onClick={() => {
-                                        setRenamingOutput(studioOutputsList.find((o) => o.id === item.id) ?? null)
+                                        setRenamingOutput(
+                                          studioOutputsList.find((o) => o.id === item.id) ?? null
+                                        )
                                         setRenameValue(item.title)
                                       }}
                                     >
@@ -2594,33 +2789,59 @@ export function StudioSidebar({
       )}
       {revisionModalOpen && activeSlidedeck?.data && (
         <SlidedeckRevisionModal
-          slideData={activeSlidedeck.data as SlideData & { usedSources?: SlidedeckUsedSource[]; language?: string; slidesUrl?: string }}
-          presentationTitle={(activeSlidedeck.data as SlideData).presentationTitle ?? activeSlidedeck.title ?? tStudio("slidedeck")}
+          slideData={
+            activeSlidedeck.data as SlideData & {
+              usedSources?: SlidedeckUsedSource[]
+              language?: string
+              slidesUrl?: string
+            }
+          }
+          presentationTitle={
+            (activeSlidedeck.data as SlideData).presentationTitle ??
+            activeSlidedeck.title ??
+            tStudio("slidedeck")
+          }
           isRevising={isRevising}
           onClose={() => setRevisionModalOpen(false)}
           onRevise={(instructions) => void handleRevise(instructions)}
-          onStartViewer={() => { setSlideViewerIndex(0); setSlideViewerOpen(true) }}
+          onStartViewer={() => {
+            setSlideViewerIndex(0)
+            setSlideViewerOpen(true)
+          }}
+          onDelete={() => {
+            if (activeSlidedeck) {
+              handleDeleteStudioOutput(activeSlidedeck.id)
+              closeSlidedeck()
+            }
+          }}
         />
       )}
       <MindmapSourcesModal
         open={!!mindmapModalOutput}
         onOpenChange={(open) => !open && setMindmapModalOutput(null)}
-        usedSources={((mindmapModalOutput?.data as MindmapData)?.usedSources ?? []) as MindmapData["usedSources"]}
+        usedSources={
+          ((mindmapModalOutput?.data as MindmapData)?.usedSources ??
+            []) as MindmapData["usedSources"]
+        }
         onGenerate={(focusTopic) => generateMindmap(focusTopic, mindmapModalOutput?.id)}
       />
       <AudioSourcesModal
         open={!!audioModalOutput}
         onOpenChange={(open) => !open && setAudioModalOutput(null)}
-        usedSources={((audioModalOutput?.data as AudioData)?.usedSources ?? [])}
+        usedSources={(audioModalOutput?.data as AudioData)?.usedSources ?? []}
         currentFormat={(audioModalOutput?.data as AudioData)?.format}
         currentLanguage={(audioModalOutput?.data as AudioData)?.language}
         currentLength={(audioModalOutput?.data as AudioData)?.length}
         onGenerate={(params) => generateAudio(params, audioModalOutput?.id)}
       />
       <DatatableCustomizeModal
-        key={datatableModal ? `${datatableModal.view}-${datatableModal.output?.id ?? "new"}` : "closed"}
+        key={
+          datatableModal ? `${datatableModal.view}-${datatableModal.output?.id ?? "new"}` : "closed"
+        }
         open={!!datatableModal}
-        onOpenChange={(open) => { if (!open) setDatatableModal(null) }}
+        onOpenChange={(open) => {
+          if (!open) setDatatableModal(null)
+        }}
         usedSources={(datatableModal?.output?.data as DatatableData | null)?.usedSources ?? []}
         initialView={datatableModal?.view ?? "customize"}
         defaultLanguage={(datatableModal?.output?.data as DatatableData | null)?.language ?? "de"}
@@ -2629,7 +2850,9 @@ export function StudioSidebar({
       <DatatableSourcesModal
         key={datatableSourcesOutput?.id ?? "datatable-sources-closed"}
         open={!!datatableSourcesOutput}
-        onOpenChange={(open) => { if (!open) setDatatableSourcesOutput(null) }}
+        onOpenChange={(open) => {
+          if (!open) setDatatableSourcesOutput(null)
+        }}
         usedSources={(datatableSourcesOutput?.data as DatatableData | null)?.usedSources ?? []}
         defaultLanguage={(datatableSourcesOutput?.data as DatatableData | null)?.language ?? "de"}
         onGenerate={(options) => generateDatatable(options, datatableSourcesOutput?.id)}

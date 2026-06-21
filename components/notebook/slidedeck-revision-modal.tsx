@@ -2,10 +2,13 @@
 
 import { useState } from "react"
 import { useTranslations } from "next-intl"
-import { X, Play, Share2, MoreHorizontal, ChevronDown } from "lucide-react"
+import { X, Play, Share2, MoreHorizontal, ChevronDown, FileDown, Trash2 } from "lucide-react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import type { SlideData } from "@/lib/google-slides-export"
+import { slidesUrlToExportUrl } from "@/lib/google-slides-export"
 import type { SlidedeckUsedSource } from "./slidedeck-modal"
 
 type SlidedeckRevisionModalProps = {
@@ -15,6 +18,7 @@ type SlidedeckRevisionModalProps = {
   onRevise: (instructions: Record<number, string>) => void
   isRevising?: boolean
   onStartViewer?: () => void
+  onDelete?: () => void
 }
 
 export function SlidedeckRevisionModal({
@@ -24,6 +28,7 @@ export function SlidedeckRevisionModal({
   onRevise,
   isRevising,
   onStartViewer,
+  onDelete,
 }: SlidedeckRevisionModalProps) {
   const t = useTranslations("studio")
   const [currentIndex, setCurrentIndex] = useState(0)
@@ -88,8 +93,8 @@ export function SlidedeckRevisionModal({
             variant="ghost"
             size="icon"
             className="size-8 text-white/50 hover:bg-white/10 hover:text-white"
-            onClick={onStartViewer}
             title={t("slidedeckPresent")}
+            onClick={() => { onClose(); onStartViewer?.() }}
           >
             <Play className="size-4" />
           </Button>
@@ -97,13 +102,13 @@ export function SlidedeckRevisionModal({
             variant="ghost"
             size="icon"
             className="size-8 text-white/50 hover:bg-white/10 hover:text-white"
-            onClick={() => {
-              if (slideData.slidesUrl) {
-                if (navigator.share) navigator.share({ url: slideData.slidesUrl }).catch(() => undefined)
-                else navigator.clipboard.writeText(slideData.slidesUrl)
-              }
-            }}
             title={t("share")}
+            onClick={async () => {
+              const url = slideData.slidesUrl
+              if (!url) { toast.error(t("slidedeckNoUrl")); return }
+              if (navigator.share) await navigator.share({ title: presentationTitle, url }).catch(() => undefined)
+              else { await navigator.clipboard.writeText(url); toast.success(t("shareCopied")) }
+            }}
           >
             <Share2 className="size-4" />
           </Button>
@@ -115,9 +120,40 @@ export function SlidedeckRevisionModal({
           >
             <X className="size-4" />
           </Button>
-          <Button variant="ghost" size="icon" className="size-8 text-white/50 hover:bg-white/10 hover:text-white">
-            <MoreHorizontal className="size-4" />
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger className="flex size-8 items-center justify-center rounded-md text-white/50 transition-colors hover:bg-white/10 hover:text-white">
+              <MoreHorizontal className="size-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent side="bottom" align="end" className="w-max">
+              <DropdownMenuItem
+                onClick={() => {
+                  const url = slideData.slidesUrl
+                  if (url) window.open(slidesUrlToExportUrl(url, "pdf"), "_blank", "noopener,noreferrer")
+                  else toast.error(t("slidedeckNoUrl"))
+                }}
+              >
+                <FileDown className="size-4" />
+                {t("slidedeckExportPdf")}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  const url = slideData.slidesUrl
+                  if (url) window.open(slidesUrlToExportUrl(url, "pptx"), "_blank", "noopener,noreferrer")
+                  else toast.error(t("slidedeckNoUrl"))
+                }}
+              >
+                <FileDown className="size-4" />
+                {t("slidedeckExportPptx")}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onClick={() => { onClose(); onDelete?.() }}
+              >
+                <Trash2 className="size-4" />
+                {t("delete")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
