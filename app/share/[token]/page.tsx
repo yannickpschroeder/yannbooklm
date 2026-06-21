@@ -20,25 +20,31 @@ export default async function SharePage({ params }: { params: Promise<{ token: s
 
   if (!output || !output.data) notFound()
 
+  const isMindmap = output.type === "mindmap"
+
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <header className="flex h-12 items-center border-b px-4">
+    <div className="flex h-screen flex-col overflow-hidden bg-background">
+      <header className="flex h-12 shrink-0 items-center border-b px-4">
         <span className="text-sm font-semibold">YannBookLM</span>
         {output.title && (
-          <span className="ml-3 text-sm text-muted-foreground">· {output.title}</span>
+          <span className="text-muted-foreground ml-3 text-sm">· {output.title}</span>
         )}
       </header>
-      <main className="mx-auto w-full max-w-4xl flex-1 px-6 py-6">
-        {output.type === "quiz" ? (
-          <SharedQuizClient data={output.data as QuizData} outputId={output.id} />
-        ) : output.type === "flashcards" ? (
-          <SharedFlashcardsClient data={output.data as FlashcardData} outputId={output.id} />
-        ) : output.type === "mindmap" ? (
+      {isMindmap ? (
+        <div className="min-h-0 flex-1">
           <SharedMindmapClient data={output.data as MindmapData} />
-        ) : (
-          notFound()
-        )}
-      </main>
+        </div>
+      ) : (
+        <main className="mx-auto w-full max-w-4xl flex-1 overflow-y-auto px-6 py-6">
+          {output.type === "quiz" ? (
+            <SharedQuizClient data={output.data as QuizData} outputId={output.id} />
+          ) : output.type === "flashcards" ? (
+            <SharedFlashcardsClient data={output.data as FlashcardData} outputId={output.id} />
+          ) : (
+            notFound()
+          )}
+        </main>
+      )}
     </div>
   )
 }

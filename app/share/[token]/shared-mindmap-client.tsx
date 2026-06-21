@@ -5,7 +5,7 @@ import type { MindmapData } from "@/app/api/studio/mindmap/route"
 
 export function SharedMindmapClient({ data }: { data: MindmapData }) {
   return (
-    <div className="h-[calc(100vh-3rem)] w-full">
+    <div className="h-full w-full">
       <MindmapCanvas data={data} />
     </div>
   )
