@@ -6,6 +6,8 @@ import { SharedQuizClient } from "./shared-quiz-client"
 import type { QuizData } from "@/components/notebook/quiz-view"
 import { SharedFlashcardsClient } from "./shared-flashcards-client"
 import type { FlashcardData } from "@/components/notebook/flashcard-view"
+import { SharedMindmapClient } from "./shared-mindmap-client"
+import type { MindmapData } from "@/app/api/studio/mindmap/route"
 
 export default async function SharePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params
@@ -31,6 +33,8 @@ export default async function SharePage({ params }: { params: Promise<{ token: s
           <SharedQuizClient data={output.data as QuizData} outputId={output.id} />
         ) : output.type === "flashcards" ? (
           <SharedFlashcardsClient data={output.data as FlashcardData} outputId={output.id} />
+        ) : output.type === "mindmap" ? (
+          <SharedMindmapClient data={output.data as MindmapData} />
         ) : (
           notFound()
         )}
