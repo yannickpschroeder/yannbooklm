@@ -27,6 +27,7 @@ export const studioOutputTypeEnum = pgEnum("studio_output_type", [
   "datatable",
   "quiz",
   "flashcards",
+  "report",
 ])
 
 // ─── Auth (NextAuth Drizzle Adapter) ──────────────────────────────────────────
