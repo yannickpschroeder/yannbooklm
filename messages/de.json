@@ -68,6 +68,7 @@
     "quizNoSources": "Keine Quellen verfügbar. Bitte zuerst Quellen hinzufügen.",
     "quizError": "Fehler beim Generieren des Quiz",
     "share": "Teilen",
+    "shareCopied": "Link kopiert",
     "rename": "Umbenennen",
     "renameError": "Fehler beim Umbenennen",
     "viewPrompt": "Prompt und Quellen ansehen",

@@ -580,7 +580,16 @@ export function StudioSidebar({
                               </>
                             ) : (
                               <>
-                                <DropdownMenuItem className="whitespace-nowrap" onClick={() => devTodo("share")}>
+                                <DropdownMenuItem className="whitespace-nowrap" onClick={async () => {
+                                  const url = window.location.href
+                                  const title = item.title
+                                  if (navigator.share) {
+                                    await navigator.share({ title, url }).catch(() => undefined)
+                                  } else {
+                                    await navigator.clipboard.writeText(url)
+                                    toast.success(tStudio("shareCopied"))
+                                  }
+                                }}>
                                   <Share2 className="size-4" />{tStudio("share")}
                                 </DropdownMenuItem>
                                 <DropdownMenuItem className="whitespace-nowrap" onClick={() => { setRenamingOutput(studioOutputsList.find((o) => o.id === item.id) ?? null); setRenameValue(item.title) }}>
