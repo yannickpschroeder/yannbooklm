@@ -581,10 +581,12 @@ export function StudioSidebar({
                             ) : (
                               <>
                                 <DropdownMenuItem className="whitespace-nowrap" onClick={async () => {
-                                  const url = window.location.href
-                                  const title = item.title
+                                  const res = await fetch(`/api/studio/quiz/${item.id}/share`, { method: "POST" })
+                                  if (!res.ok) { toast.error(tStudio("shareError")); return }
+                                  const { token } = (await res.json()) as { token: string }
+                                  const url = `${window.location.origin}/share/${token}`
                                   if (navigator.share) {
-                                    await navigator.share({ title, url }).catch(() => undefined)
+                                    await navigator.share({ title: item.title, url }).catch(() => undefined)
                                   } else {
                                     await navigator.clipboard.writeText(url)
                                     toast.success(tStudio("shareCopied"))

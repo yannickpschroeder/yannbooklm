@@ -69,6 +69,7 @@
     "quizError": "Failed to generate quiz",
     "share": "Share",
     "shareCopied": "Link copied",
+    "shareError": "Failed to create share link",
     "rename": "Rename",
     "renameError": "Failed to rename",
     "viewPrompt": "View prompt and sources",
