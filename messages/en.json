@@ -121,7 +121,13 @@
     "rename": "Rename",
     "renameError": "Failed to rename",
     "viewPrompt": "View prompt and sources",
-    "delete": "Delete"
+    "delete": "Delete",
+    "datatableGenerating": "Generating data table…",
+    "datatableNoSources": "No sources available. Please add sources first.",
+    "datatableError": "Failed to generate data table",
+    "datatableRegenerate": "Regenerate",
+    "datatableExportCsv": "Export CSV",
+    "datatableSourcesChip": "{count} sources"
   },
   "flashcards": {
     "frontLabel": "Front",

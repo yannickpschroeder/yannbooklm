@@ -71,6 +71,8 @@ import { exportToGoogleSlides, slidesUrlToExportUrl } from "@/lib/google-slides-
 import type { SlideData } from "@/lib/google-slides-export"
 import { MindmapCanvas } from "./mindmap-canvas"
 import type { MindmapData } from "@/app/api/studio/mindmap/route"
+import { DatatableView } from "./datatable-view"
+import type { DatatableData } from "@/app/api/studio/datatable/route"
 import { toast } from "sonner"
 import type { Note, StudioOutput } from "@/db/schema"
 
@@ -205,6 +207,7 @@ export function StudioSidebar({
   const [activeSlidedeck, setActiveSlidedeck] = useState<StudioOutput | null>(null)
   const [activeFlashcards, setActiveFlashcards] = useState<StudioOutput | null>(null)
   const [activeMindmap, setActiveMindmap] = useState<StudioOutput | null>(null)
+  const [activeDatatable, setActiveDatatable] = useState<StudioOutput | null>(null)
   const [slideViewerOpen, setSlideViewerOpen] = useState(false)
   const [slideViewerIndex, setSlideViewerIndex] = useState(0)
   const [revisionModalOpen, setRevisionModalOpen] = useState(false)
@@ -279,6 +282,9 @@ export function StudioSidebar({
     } else if (item.kind === "mindmap") {
       const output = studioOutputsList.find((o) => o.id === item.id)
       if (output) openMindmap(output)
+    } else if (item.kind === "datatable") {
+      const output = studioOutputsList.find((o) => o.id === item.id)
+      if (output) openDatatable(output)
     } else devTodo(item.kind)
   }
 
@@ -299,12 +305,16 @@ export function StudioSidebar({
   useEffect(() => {
     activeMindmapRef.current = activeMindmap
   }, [activeMindmap])
+  const activeDatatableRef = useRef(activeDatatable)
+  useEffect(() => {
+    activeDatatableRef.current = activeDatatable
+  }, [activeDatatable])
   const onNoteModeChangeRef = useRef(onNoteModeChange)
   useEffect(() => {
     onNoteModeChangeRef.current = onNoteModeChange
   }, [onNoteModeChange])
   // outputId → what to do when ready
-  const pendingActionsRef = useRef<Map<string, "open-quiz" | "create-slides" | "open-flashcards" | "open-mindmap">>(
+  const pendingActionsRef = useRef<Map<string, "open-quiz" | "create-slides" | "open-flashcards" | "open-mindmap" | "open-datatable">>(
     new Map()
   )
   const processedIdsRef = useRef<Set<string>>(new Set())
@@ -372,6 +382,9 @@ export function StudioSidebar({
             if (activeMindmapRef.current?.id === output.id) {
               setActiveMindmap(output)
             }
+            if (activeDatatableRef.current?.id === output.id) {
+              setActiveDatatable(output)
+            }
 
             if (action === "open-quiz") {
               setActiveQuiz(output)
@@ -395,6 +408,15 @@ export function StudioSidebar({
               setActiveQuiz(null)
               setActiveSlidedeck(null)
               setActiveFlashcards(null)
+              setCollapsed(false)
+              onNoteModeChangeRef.current(true)
+            } else if (action === "open-datatable") {
+              setActiveDatatable(output)
+              setActiveNote(null)
+              setActiveQuiz(null)
+              setActiveSlidedeck(null)
+              setActiveFlashcards(null)
+              setActiveMindmap(null)
               setCollapsed(false)
               onNoteModeChangeRef.current(true)
             } else if (action === "create-slides") {
@@ -462,6 +484,22 @@ export function StudioSidebar({
 
   function closeMindmap() {
     setActiveMindmap(null)
+    onNoteModeChange(false)
+  }
+
+  function openDatatable(output: StudioOutput) {
+    setActiveDatatable(output)
+    setActiveNote(null)
+    setActiveQuiz(null)
+    setActiveFlashcards(null)
+    setActiveSlidedeck(null)
+    setActiveMindmap(null)
+    setCollapsed(false)
+    onNoteModeChange(true)
+  }
+
+  function closeDatatable() {
+    setActiveDatatable(null)
     onNoteModeChange(false)
   }
 
@@ -654,6 +692,34 @@ export function StudioSidebar({
       }
     } catch {
       toast.error(tStudio("flashcardsError"))
+    }
+  }
+
+  async function generateDatatable(existingOutputId?: string) {
+    try {
+      const res = await fetch("/api/studio/datatable", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notebookId, outputId: existingOutputId }),
+      })
+      if (!res.ok) {
+        const { error } = (await res.json()) as { error: string }
+        toast.error(error === "NO_SOURCES" ? tStudio("datatableNoSources") : tStudio("datatableError"))
+        return
+      }
+      const { outputId } = (await res.json()) as { outputId: string }
+      const placeholder = makeGeneratingPlaceholder(outputId, "datatable")
+
+      if (existingOutputId) {
+        setStudioOutputsList((prev) =>
+          prev.map((o) => (o.id === existingOutputId ? placeholder : o))
+        )
+      } else {
+        pendingActionsRef.current.set(outputId, "open-datatable")
+        setStudioOutputsList((prev) => [placeholder, ...prev])
+      }
+    } catch {
+      toast.error(tStudio("datatableError"))
     }
   }
 
@@ -1398,6 +1464,40 @@ export function StudioSidebar({
                 <MindmapCanvas data={activeMindmap.data as MindmapData} />
               )}
             </div>
+          ) : activeDatatable ? (
+            /* ── Datatable detail view ── */
+            <div className="flex flex-1 flex-col overflow-hidden">
+              <div className="flex h-10 shrink-0 items-center justify-between border-b px-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-7 shrink-0"
+                  aria-label={tCommon("back")}
+                  onClick={closeDatatable}
+                >
+                  <ChevronLeft className="size-4" />
+                </Button>
+                <span className="truncate px-1 text-xs font-medium">
+                  {activeDatatable.title ?? tStudio("datatable")}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 shrink-0 text-xs"
+                  disabled={activeDatatable.status === "generating"}
+                  onClick={() => generateDatatable(activeDatatable.id)}
+                >
+                  {tStudio("datatableRegenerate")}
+                </Button>
+              </div>
+              {activeDatatable.status === "generating" || !activeDatatable.data ? (
+                <div className="text-muted-foreground flex flex-1 items-center justify-center text-sm">
+                  {tStudio("datatableGenerating")}
+                </div>
+              ) : (
+                <DatatableView data={activeDatatable.data as DatatableData} />
+              )}
+            </div>
           ) : activeNote ? (
             /* ── Note detail view ── */
             <div className="flex flex-1 flex-col overflow-hidden">
@@ -1491,6 +1591,7 @@ export function StudioSidebar({
                           else if (tool.id === "slidedeck") generateSlidedeck()
                           else if (tool.id === "flashcards") generateFlashcards()
                           else if (tool.id === "mindmap") generateMindmap()
+                          else if (tool.id === "datatable") generateDatatable()
                           else devTodo(tool.id)
                         }}
                       >

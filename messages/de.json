@@ -121,7 +121,13 @@
     "rename": "Umbenennen",
     "renameError": "Fehler beim Umbenennen",
     "viewPrompt": "Prompt und Quellen ansehen",
-    "delete": "Löschen"
+    "delete": "Löschen",
+    "datatableGenerating": "Datentabelle wird generiert…",
+    "datatableNoSources": "Keine Quellen verfügbar. Bitte zuerst Quellen hinzufügen.",
+    "datatableError": "Fehler beim Generieren der Datentabelle",
+    "datatableRegenerate": "Neu generieren",
+    "datatableExportCsv": "CSV exportieren",
+    "datatableSourcesChip": "{count} Quellen"
   },
   "flashcards": {
     "frontLabel": "Vorderseite",
