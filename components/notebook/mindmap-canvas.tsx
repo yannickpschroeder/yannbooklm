@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useMemo, useRef } from "react"
+import { useMemo } from "react"
 import {
   ReactFlow,
   Background,
@@ -44,17 +44,12 @@ function applyDagreLayout(nodes: Node[], edges: Edge[]): { nodes: Node[]; edges:
 
 // ─── Custom node ──────────────────────────────────────────────────────────────
 
-type MindmapNodeData = { label: string; description?: string; group?: string }
+type MindmapNodeData = { label: string; description?: string; group?: string; clickable?: boolean }
 
 function MindmapNode({ data }: { data: MindmapNodeData }) {
-  const colors: Record<string, string> = {
-    default: "border-blue-400/60 bg-blue-50/80",
-  }
-  const color = colors[data.group ?? "default"] ?? colors.default
-
   return (
     <div
-      className={`group relative flex min-w-[120px] max-w-[160px] items-center justify-center rounded-xl border-2 px-3 py-2 text-center text-[11px] font-medium leading-tight shadow-sm transition-shadow hover:shadow-md ${color}`}
+      className={`group relative flex min-w-[120px] max-w-[160px] items-center justify-center rounded-xl border-2 border-blue-400/60 bg-blue-50/80 px-3 py-2 text-center text-[11px] font-medium leading-tight shadow-sm transition-shadow hover:shadow-md ${data.clickable ? "cursor-pointer hover:border-blue-500 hover:bg-blue-100/80" : ""}`}
       title={data.description ?? data.label}
     >
       <Handle type="target" position={Position.Left} className="!size-2 !border-0 !bg-blue-400/50" />
@@ -107,16 +102,33 @@ function ExportButton() {
 
 // ─── Inner canvas (needs ReactFlowProvider) ───────────────────────────────────
 
-function MindmapCanvasInner({ data }: { data: MindmapData }) {
+function MindmapCanvasInner({
+  data,
+  onNodeClick,
+}: {
+  data: MindmapData
+  onNodeClick?: (label: string, parentLabel: string | null) => void
+}) {
+  const rootIds = useMemo(() => {
+    const hasIncoming = new Set(data.edges.map((e) => e.target))
+    return new Set(data.nodes.filter((n) => !hasIncoming.has(n.id)).map((n) => n.id))
+  }, [data.edges, data.nodes])
+
   const rawNodes: Node[] = useMemo(
     () =>
       data.nodes.map((n) => ({
         id: n.id,
         type: "mindmap",
         position: { x: 0, y: 0 },
-        data: { label: n.label, description: n.description, group: n.group },
+        data: {
+          label: n.label,
+          description: n.description,
+          group: n.group,
+          clickable: onNodeClick ? !rootIds.has(n.id) : false,
+        },
       })),
-    [data.nodes]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [data.nodes, rootIds, !!onNodeClick]
   )
 
   const rawEdges: Edge[] = useMemo(
@@ -143,6 +155,13 @@ function MindmapCanvasInner({ data }: { data: MindmapData }) {
   const [nodes, , onNodesChange] = useNodesState(laidOutNodes)
   const [edges, , onEdgesChange] = useEdgesState(laidOutEdges)
 
+  function handleNodeClick(_: React.MouseEvent, node: Node) {
+    if (!onNodeClick || rootIds.has(node.id)) return
+    const parentEdge = data.edges.find((e) => e.target === node.id)
+    const parentNode = parentEdge ? data.nodes.find((n) => n.id === parentEdge.source) : null
+    onNodeClick((node.data as MindmapNodeData).label, parentNode?.label ?? null)
+  }
+
   return (
     <div className="relative size-full">
       <ReactFlow
@@ -151,6 +170,7 @@ function MindmapCanvasInner({ data }: { data: MindmapData }) {
         nodeTypes={nodeTypes}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
+        onNodeClick={handleNodeClick}
         fitView
         fitViewOptions={{ padding: 0.15 }}
         minZoom={0.2}
@@ -173,10 +193,16 @@ function MindmapCanvasInner({ data }: { data: MindmapData }) {
 
 // ─── Public export ────────────────────────────────────────────────────────────
 
-export function MindmapCanvas({ data }: { data: MindmapData }) {
+export function MindmapCanvas({
+  data,
+  onNodeClick,
+}: {
+  data: MindmapData
+  onNodeClick?: (label: string, parentLabel: string | null) => void
+}) {
   return (
     <ReactFlowProvider>
-      <MindmapCanvasInner data={data} />
+      <MindmapCanvasInner data={data} onNodeClick={onNodeClick} />
     </ReactFlowProvider>
   )
 }

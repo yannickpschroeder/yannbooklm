@@ -35,6 +35,7 @@ import {
   FaQuestionCircle,
   FaSlideshare,
   FaClone,
+  FaNewspaper,
 } from "react-icons/fa"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
@@ -73,7 +74,11 @@ import { MindmapCanvas } from "./mindmap-canvas"
 import { MindmapSourcesModal } from "./mindmap-sources-modal"
 import type { MindmapData } from "@/app/api/studio/mindmap/route"
 import { DatatableView } from "./datatable-view"
+import { DatatableCustomizeModal } from "./datatable-customize-modal"
 import type { DatatableData } from "@/app/api/studio/datatable/route"
+import { ReportView } from "./report-view"
+import type { ReportData } from "./report-view"
+import { ReportFormatModal } from "./report-format-modal"
 import { toast } from "sonner"
 import type { Note, StudioOutput } from "@/db/schema"
 
@@ -126,6 +131,14 @@ const STUDIO_TOOLS = [
     color: "text-rose-400",
     bg: "bg-rose-500/10",
   },
+  {
+    id: "report",
+    labelKey: "report",
+    icon: FaNewspaper,
+    badge: null,
+    color: "text-blue-400",
+    bg: "bg-blue-500/10",
+  },
 ] as const
 
 export const NOTE_FROM_CHAT_EVENT = "notebook:save-as-note"
@@ -155,6 +168,8 @@ function outputIcon(kind: OutputKind) {
       return <FaQuestionCircle className="size-4 shrink-0 text-amber-400" />
     case "flashcards":
       return <FaClone className="size-4 shrink-0 text-rose-400" />
+    case "report":
+      return <FaNewspaper className="size-4 shrink-0 text-blue-400" />
     default:
       return <StickyNote className="size-4 shrink-0 text-blue-400" />
   }
@@ -209,6 +224,9 @@ export function StudioSidebar({
   const [activeFlashcards, setActiveFlashcards] = useState<StudioOutput | null>(null)
   const [activeMindmap, setActiveMindmap] = useState<StudioOutput | null>(null)
   const [activeDatatable, setActiveDatatable] = useState<StudioOutput | null>(null)
+  const [datatableModal, setDatatableModal] = useState<{ view: "sources" | "customize"; output: StudioOutput | null } | null>(null)
+  const [activeReport, setActiveReport] = useState<StudioOutput | null>(null)
+  const [reportModalOpen, setReportModalOpen] = useState(false)
   const [slideViewerOpen, setSlideViewerOpen] = useState(false)
   const [slideViewerIndex, setSlideViewerIndex] = useState(0)
   const [revisionModalOpen, setRevisionModalOpen] = useState(false)
@@ -287,6 +305,9 @@ export function StudioSidebar({
     } else if (item.kind === "datatable") {
       const output = studioOutputsList.find((o) => o.id === item.id)
       if (output) openDatatable(output)
+    } else if (item.kind === "report") {
+      const output = studioOutputsList.find((o) => o.id === item.id)
+      if (output) openReport(output)
     } else devTodo(item.kind)
   }
 
@@ -311,12 +332,16 @@ export function StudioSidebar({
   useEffect(() => {
     activeDatatableRef.current = activeDatatable
   }, [activeDatatable])
+  const activeReportRef = useRef(activeReport)
+  useEffect(() => {
+    activeReportRef.current = activeReport
+  }, [activeReport])
   const onNoteModeChangeRef = useRef(onNoteModeChange)
   useEffect(() => {
     onNoteModeChangeRef.current = onNoteModeChange
   }, [onNoteModeChange])
   // outputId → what to do when ready
-  const pendingActionsRef = useRef<Map<string, "open-quiz" | "create-slides" | "open-flashcards" | "open-mindmap" | "open-datatable">>(
+  const pendingActionsRef = useRef<Map<string, "open-quiz" | "create-slides" | "open-flashcards" | "open-mindmap" | "open-datatable" | "open-report">>(
     new Map()
   )
   const processedIdsRef = useRef<Set<string>>(new Set())
@@ -387,6 +412,9 @@ export function StudioSidebar({
             if (activeDatatableRef.current?.id === output.id) {
               setActiveDatatable(output)
             }
+            if (activeReportRef.current?.id === output.id) {
+              setActiveReport(output)
+            }
 
             if (action === "open-quiz") {
               setActiveQuiz(output)
@@ -419,6 +447,16 @@ export function StudioSidebar({
               setActiveSlidedeck(null)
               setActiveFlashcards(null)
               setActiveMindmap(null)
+              setCollapsed(false)
+              onNoteModeChangeRef.current(true)
+            } else if (action === "open-report") {
+              setActiveReport(output)
+              setActiveNote(null)
+              setActiveQuiz(null)
+              setActiveSlidedeck(null)
+              setActiveFlashcards(null)
+              setActiveMindmap(null)
+              setActiveDatatable(null)
               setCollapsed(false)
               onNoteModeChangeRef.current(true)
             } else if (action === "create-slides") {
@@ -502,6 +540,23 @@ export function StudioSidebar({
 
   function closeDatatable() {
     setActiveDatatable(null)
+    onNoteModeChange(false)
+  }
+
+  function openReport(output: StudioOutput) {
+    setActiveReport(output)
+    setActiveNote(null)
+    setActiveQuiz(null)
+    setActiveFlashcards(null)
+    setActiveSlidedeck(null)
+    setActiveMindmap(null)
+    setActiveDatatable(null)
+    setCollapsed(false)
+    onNoteModeChange(true)
+  }
+
+  function closeReport() {
+    setActiveReport(null)
     onNoteModeChange(false)
   }
 
@@ -697,12 +752,41 @@ export function StudioSidebar({
     }
   }
 
-  async function generateDatatable(existingOutputId?: string) {
+  async function generateReport(format: string, language: string, customPrompt?: string, existingOutputId?: string) {
+    try {
+      const res = await fetch("/api/studio/report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notebookId, format, language, customPrompt, outputId: existingOutputId }),
+      })
+      if (!res.ok) {
+        const { error } = (await res.json()) as { error: string }
+        toast.error(error === "NO_SOURCES" ? tStudio("reportNoSources") : tStudio("reportError"))
+        return
+      }
+      const { outputId } = (await res.json()) as { outputId: string }
+      const placeholder = makeGeneratingPlaceholder(outputId, "report")
+      if (existingOutputId) {
+        setStudioOutputsList((prev) => prev.map((o) => (o.id === existingOutputId ? placeholder : o)))
+        if (activeReportRef.current?.id === existingOutputId) setActiveReport(placeholder)
+      } else {
+        pendingActionsRef.current.set(outputId, "open-report")
+        setStudioOutputsList((prev) => [placeholder, ...prev])
+      }
+    } catch {
+      toast.error(tStudio("reportError"))
+    }
+  }
+
+  async function generateDatatable(
+    options?: { language?: string; focusTopic?: string },
+    existingOutputId?: string
+  ) {
     try {
       const res = await fetch("/api/studio/datatable", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ notebookId, outputId: existingOutputId }),
+        body: JSON.stringify({ notebookId, outputId: existingOutputId, ...options }),
       })
       if (!res.ok) {
         const { error } = (await res.json()) as { error: string }
@@ -716,12 +800,29 @@ export function StudioSidebar({
         setStudioOutputsList((prev) =>
           prev.map((o) => (o.id === existingOutputId ? placeholder : o))
         )
+        if (activeDatatableRef.current?.id === existingOutputId) setActiveDatatable(placeholder)
       } else {
         pendingActionsRef.current.set(outputId, "open-datatable")
         setStudioOutputsList((prev) => [placeholder, ...prev])
       }
     } catch {
       toast.error(tStudio("datatableError"))
+    }
+  }
+
+  async function exportDatatableToSheets() {
+    if (!activeDatatable?.data) return
+    const data = activeDatatable.data as DatatableData
+    const md = [
+      `| ${data.headers.join(" | ")} |`,
+      `| ${data.headers.map(() => "---").join(" | ")} |`,
+      ...data.rows.map((r) => `| ${r.join(" | ")} |`),
+    ].join("\n")
+    try {
+      const url = await exportNoteToGoogleSheets(data.title, md)
+      window.open(url, "_blank", "noopener,noreferrer")
+    } catch {
+      toast.error(tStudio("datatableSheetsError"))
     }
   }
 
@@ -998,7 +1099,13 @@ export function StudioSidebar({
                     ? tStudio("flashcards")
                     : activeSlidedeck
                       ? tStudio("slidedeck")
-                      : tStudio("title")}
+                      : activeMindmap
+                        ? tStudio("mindmap")
+                        : activeDatatable
+                          ? tStudio("datatable")
+                          : activeReport
+                            ? tStudio("report")
+                            : tStudio("title")}
             </span>
           )}
           <Button
@@ -1012,6 +1119,7 @@ export function StudioSidebar({
                 if (activeNote) closeNoteDetail()
                 if (activeQuiz) closeQuiz()
                 if (activeFlashcards) closeFlashcards()
+                if (activeReport) closeReport()
               }
             }}
           >
@@ -1463,7 +1571,76 @@ export function StudioSidebar({
                   {tStudio("mindmapGenerating")}
                 </div>
               ) : (
-                <MindmapCanvas data={activeMindmap.data as MindmapData} />
+                <MindmapCanvas
+                  data={activeMindmap.data as MindmapData}
+                  onNodeClick={(label, parentLabel) => {
+                    const text = parentLabel
+                      ? `Discuss what these sources say about ${label}, in the larger context of ${parentLabel}`
+                      : `Discuss what these sources say about ${label}`
+                    window.dispatchEvent(new CustomEvent("notebook:ask", { detail: { text } }))
+                  }}
+                />
+              )}
+            </div>
+          ) : activeReport ? (
+            /* ── Report detail view ── */
+            <div className="flex flex-1 flex-col overflow-hidden">
+              <div className="flex h-10 shrink-0 items-center justify-between border-b px-2">
+                <Button variant="ghost" size="icon" className="size-7 shrink-0" aria-label={tCommon("back")} onClick={closeReport}>
+                  <ChevronLeft className="size-4" />
+                </Button>
+                <span className="truncate px-1 text-xs font-medium">
+                  {activeReport.title ?? tStudio("report")}
+                </span>
+                <DropdownMenu>
+                  <DropdownMenuTrigger className="hover:bg-accent flex size-7 shrink-0 items-center justify-center rounded-md transition-colors">
+                    <MoreHorizontal className="size-3.5" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent side="bottom" align="end" className="w-max">
+                    <DropdownMenuItem
+                      className="whitespace-nowrap"
+                      onClick={async () => {
+                        const res = await fetch(`/api/studio/report/${activeReport.id}/share`, { method: "POST" })
+                        if (!res.ok) { toast.error(tStudio("shareError")); return }
+                        const { token } = (await res.json()) as { token: string }
+                        const url = `${window.location.origin}/share/${token}`
+                        if (navigator.share) await navigator.share({ title: activeReport.title ?? undefined, url }).catch(() => undefined)
+                        else { await navigator.clipboard.writeText(url); toast.success(tStudio("shareCopied")) }
+                      }}
+                    >
+                      <Share2 className="size-4" />
+                      {tStudio("share")}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="whitespace-nowrap"
+                      onClick={() => setRenamingOutput(activeReport)}
+                    >
+                      <Pencil className="size-4" />
+                      {tStudio("rename")}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="whitespace-nowrap"
+                      onClick={() => setReportModalOpen(true)}
+                    >
+                      <RefreshCw className="size-4" />
+                      {tStudio("reportRegenerate")}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="text-destructive focus:text-destructive whitespace-nowrap"
+                      onClick={() => { handleDeleteStudioOutput(activeReport.id); closeReport() }}
+                    >
+                      <Trash2 className="size-4" />
+                      {tStudio("delete")}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+              {activeReport.status === "generating" || !activeReport.data ? (
+                <div className="text-muted-foreground flex flex-1 items-center justify-center text-sm">
+                  {tStudio("reportGenerating")}
+                </div>
+              ) : (
+                <ReportView data={activeReport.data as ReportData} />
               )}
             </div>
           ) : activeDatatable ? (
@@ -1482,15 +1659,45 @@ export function StudioSidebar({
                 <span className="truncate px-1 text-xs font-medium">
                   {activeDatatable.title ?? tStudio("datatable")}
                 </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 shrink-0 text-xs"
-                  disabled={activeDatatable.status === "generating"}
-                  onClick={() => generateDatatable(activeDatatable.id)}
-                >
-                  {tStudio("datatableRegenerate")}
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger className="hover:bg-accent flex size-7 shrink-0 items-center justify-center rounded-md transition-colors">
+                    <MoreHorizontal className="size-3.5" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent side="bottom" align="end" className="w-max">
+                    <DropdownMenuItem
+                      className="whitespace-nowrap"
+                      onClick={() => setRenamingOutput(activeDatatable)}
+                    >
+                      <Pencil className="size-4" />
+                      {tStudio("rename")}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="whitespace-nowrap"
+                      disabled={!activeDatatable.data}
+                      onClick={() => exportDatatableToSheets()}
+                    >
+                      <FileDown className="size-4" />
+                      {tStudio("datatableExportSheets")}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="whitespace-nowrap"
+                      onClick={() => setDatatableModal({ view: "sources", output: activeDatatable })}
+                    >
+                      <History className="size-4" />
+                      {tStudio("viewPrompt")}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="text-destructive focus:text-destructive whitespace-nowrap"
+                      onClick={() => {
+                        handleDeleteStudioOutput(activeDatatable.id)
+                        closeDatatable()
+                      }}
+                    >
+                      <Trash2 className="size-4" />
+                      {tStudio("delete")}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
               {activeDatatable.status === "generating" || !activeDatatable.data ? (
                 <div className="text-muted-foreground flex flex-1 items-center justify-center text-sm">
@@ -1593,7 +1800,8 @@ export function StudioSidebar({
                           else if (tool.id === "slidedeck") generateSlidedeck()
                           else if (tool.id === "flashcards") generateFlashcards()
                           else if (tool.id === "mindmap") generateMindmap()
-                          else if (tool.id === "datatable") generateDatatable()
+                          else if (tool.id === "datatable") setDatatableModal({ view: "customize", output: null })
+                          else if (tool.id === "report") setReportModalOpen(true)
                           else devTodo(tool.id)
                         }}
                       >
@@ -2105,6 +2313,15 @@ export function StudioSidebar({
         onOpenChange={(open) => !open && setMindmapModalOutput(null)}
         usedSources={((mindmapModalOutput?.data as MindmapData)?.usedSources ?? []) as MindmapData["usedSources"]}
         onGenerate={(focusTopic) => generateMindmap(focusTopic, mindmapModalOutput?.id)}
+      />
+      <DatatableCustomizeModal
+        key={datatableModal ? `${datatableModal.view}-${datatableModal.output?.id ?? "new"}` : "closed"}
+        open={!!datatableModal}
+        onOpenChange={(open) => { if (!open) setDatatableModal(null) }}
+        usedSources={(datatableModal?.output?.data as DatatableData | null)?.usedSources ?? []}
+        initialView={datatableModal?.view ?? "customize"}
+        defaultLanguage={(datatableModal?.output?.data as DatatableData | null)?.language ?? "de"}
+        onGenerate={(options) => generateDatatable(options, datatableModal?.output?.id)}
       />
     </>
   )
