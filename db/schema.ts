@@ -26,6 +26,7 @@ export const studioOutputTypeEnum = pgEnum("studio_output_type", [
   "slidedeck",
   "datatable",
   "quiz",
+  "flashcards",
 ])
 
 // ─── Auth (NextAuth Drizzle Adapter) ──────────────────────────────────────────
@@ -77,6 +78,9 @@ export const notebooks = pgTable("notebooks", {
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
+  outputLanguage: text("output_language"),
+  shareToken: text("share_token").unique(),
+  shareScope: text("share_scope"),
   createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
 })
@@ -188,6 +192,7 @@ export const studioOutputs = pgTable("studio_outputs", {
     .notNull()
     .references(() => notebooks.id, { onDelete: "cascade" }),
   type: studioOutputTypeEnum("type").notNull(),
+  status: text("status").notNull().default("ready"),
   title: text("title"),
   shareToken: text("share_token").unique(),
   data: jsonb("data"),
@@ -195,10 +200,23 @@ export const studioOutputs = pgTable("studio_outputs", {
   createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
 })
 
+// ─── Feedback ─────────────────────────────────────────────────────────────────
+
+export const feedback = pgTable("feedback", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+})
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type User = typeof users.$inferSelect
 export type Notebook = typeof notebooks.$inferSelect
+export type NotebookShareScope = "sources_chat" | "sources_chat_studio"
 export type Source = typeof sources.$inferSelect
 export type SourceImage = typeof sourceImages.$inferSelect
 export type ParentChunk = typeof parentChunks.$inferSelect
@@ -206,3 +224,4 @@ export type ChildChunk = typeof childChunks.$inferSelect
 export type Message = typeof messages.$inferSelect
 export type Note = typeof notes.$inferSelect
 export type StudioOutput = typeof studioOutputs.$inferSelect
+export type Feedback = typeof feedback.$inferSelect

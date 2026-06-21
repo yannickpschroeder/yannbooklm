@@ -27,12 +27,25 @@ if not os.path.isdir(SESSION_DIR):
     print(f"Session directory not found: {SESSION_DIR}", file=sys.stderr)
     sys.exit(1)
 
-session_files = glob.glob(os.path.join(SESSION_DIR, "*.jsonl"))
-if not session_files:
+# Prefer the current session via CLAUDE_CODE_SESSION_ID env var.
+# Falls back to most-recently-modified file when called outside a Claude session.
+env_session_id = os.environ.get("CLAUDE_CODE_SESSION_ID")
+if env_session_id:
+    candidate = os.path.join(SESSION_DIR, f"{env_session_id}.jsonl")
+    if os.path.isfile(candidate):
+        session_file = candidate
+    else:
+        print(f"Session file not found for ID {env_session_id}, falling back to newest.", file=sys.stderr)
+        session_files = glob.glob(os.path.join(SESSION_DIR, "*.jsonl"))
+        session_file = max(session_files, key=os.path.getmtime) if session_files else None
+else:
+    session_files = glob.glob(os.path.join(SESSION_DIR, "*.jsonl"))
+    session_file = max(session_files, key=os.path.getmtime) if session_files else None
+
+if not session_file:
     print("No session files found.", file=sys.stderr)
     sys.exit(1)
 
-session_file = max(session_files, key=os.path.getmtime)
 session_id = os.path.basename(session_file)
 
 # ─── Load state ───────────────────────────────────────────────────────────────

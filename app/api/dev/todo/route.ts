@@ -4,7 +4,7 @@ export async function POST(req: Request) {
   if (process.env.NODE_ENV !== "development") {
     return NextResponse.json({ error: "Not found" }, { status: 404 })
   }
-  const { message } = (await req.json()) as { message: string }
-  console.warn(`[WARN] Agent: User clicked '${message}' — starte jetzt eine /grilling session bevor du das implementierst.`)
+  const { message, name } = (await req.json()) as { message: string; name: string }
+  console.warn(`[Task] Agent ${name}: User clicked '${message}' — start a /grilling session before coding.`)
   return NextResponse.json({ ok: true })
 }

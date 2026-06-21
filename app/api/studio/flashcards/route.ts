@@ -12,9 +12,9 @@ export const maxDuration = 10
 type Difficulty = "einfach" | "mittel" | "schwierig"
 
 const difficultyContext: Record<Difficulty, string> = {
-  einfach: "Das Quiz richtet sich an Einsteiger oder Menschen, die sich gerade erst mit dem Thema vertraut machen. Formuliere die Fragen klar und direkt, wähle offensichtliche Unterschiede zwischen den Antwortoptionen und vermeide Fachbegriffe ohne Erklärung. Das Ziel ist, Erfolgserlebnisse zu schaffen und grundlegendes Verständnis zu festigen.",
-  mittel: "Das Quiz richtet sich an Lernende mit Grundkenntnissen, die ihr Wissen vertiefen möchten. Mische einfache Wissensfragen mit Fragen, die echtes Verständnis und etwas Nachdenken erfordern. Die Antwortoptionen dürfen sich ähneln, sollten aber klar unterscheidbar bleiben.",
-  schwierig: "Das Quiz richtet sich an fortgeschrittene Lernende. Stelle anspruchsvolle Fragen, die tiefes Verständnis, die Fähigkeit zum kritischen Denken und das Erkennen feiner Unterschiede voraussetzen. Die Antwortoptionen dürfen sich sehr ähneln – nur wer den Stoff wirklich beherrscht, sollte die richtige Antwort sicher erkennen.",
+  einfach: "Das Kartendeck richtet sich an Einsteiger oder Menschen, die sich gerade erst mit dem Thema vertraut machen. Formuliere die Vorderseiten klar und direkt. Die Antworten auf der Rückseite sollen einfach und verständlich sein.",
+  mittel: "Das Kartendeck richtet sich an Lernende mit Grundkenntnissen, die ihr Wissen vertiefen möchten. Mische einfache Begriffserklärungen mit Fragen, die echtes Verständnis erfordern.",
+  schwierig: "Das Kartendeck richtet sich an fortgeschrittene Lernende. Stelle anspruchsvolle Fragen zu Details, Zusammenhängen und feinen Unterschieden, die tiefes Verständnis voraussetzen.",
 }
 
 async function getSourceContent(notebookId: string) {
@@ -40,7 +40,13 @@ async function getSourceContent(notebookId: string) {
   return { content, usedSources }
 }
 
-async function runQuizGeneration(outputId: string, notebookId: string, count: number, difficulty: Difficulty, focusTopic?: string) {
+async function runFlashcardGeneration(
+  outputId: string,
+  notebookId: string,
+  count: number,
+  difficulty: Difficulty,
+  focusTopic?: string
+) {
   try {
     const { content, usedSources } = await getSourceContent(notebookId)
     if (!content) {
@@ -48,13 +54,11 @@ async function runQuizGeneration(outputId: string, notebookId: string, count: nu
       return
     }
 
-    const QuizSchema = z.object({
-      questions: z.array(
+    const FlashcardSchema = z.object({
+      cards: z.array(
         z.object({
-          question: z.string(),
-          options: z.array(z.string()).length(4),
-          correct: z.number().int().min(0).max(3),
-          explanation: z.string(),
+          front: z.string(),
+          back: z.string(),
         })
       ).length(count),
       topics: z.array(z.string()).min(1).max(8),
@@ -65,17 +69,17 @@ async function runQuizGeneration(outputId: string, notebookId: string, count: nu
 
     const { object } = await generateObject({
       model: anthropic("claude-sonnet-4-6"),
-      schema: QuizSchema,
-      prompt: `Du bist ein Quiz-Generator. Erstelle auf Basis der folgenden Quellen ein Multiple-Choice-Quiz mit genau ${count} Fragen auf Deutsch.
+      schema: FlashcardSchema,
+      prompt: `Du bist ein Lernkarten-Generator. Erstelle auf Basis der folgenden Quellen ein Kartendeck mit genau ${count} Lernkarten auf Deutsch.
 Schwierigkeitsgrad: ${difficulty} – ${difficultyContext[difficulty]}
 ${focusInstruction}
 
 Anforderungen:
-- Jede Frage hat genau 4 Antwortmöglichkeiten (A, B, C, D)
-- Genau eine Antwort ist korrekt (Index 0-3)
-- Jede Frage hat eine kurze Erklärung warum die Antwort korrekt ist
-- "topics": 3-8 Hauptthemen die im Quiz behandelt werden
-- "suggestions": 4 Themenvorschläge für ein weiteres Quiz (Themen die in den Quellen vorkommen aber nicht ausführlich behandelt wurden)
+- Jede Karte hat eine "front" (prägnante Frage oder Begriff) und eine "back" (vollständige Antwort oder Erklärung)
+- Die Vorderseite soll neugierig machen und zum Nachdenken anregen
+- Die Rückseite soll klar und vollständig antworten
+- "topics": 3-8 Hauptthemen die im Kartendeck behandelt werden
+- "suggestions": 4 Themenvorschläge für ein weiteres Kartendeck (Themen aus den Quellen, die noch nicht abgedeckt wurden)
 
 Quellen:
 ${content}`,
@@ -96,7 +100,7 @@ export async function POST(req: Request) {
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const { notebookId, focusTopic, outputId, count = 15, difficulty = "mittel" } = (await req.json()) as {
+  const { notebookId, focusTopic, outputId, count = 20, difficulty = "mittel" } = (await req.json()) as {
     notebookId: string
     focusTopic?: string
     outputId?: string
@@ -112,7 +116,6 @@ export async function POST(req: Request) {
 
   if (!notebook) return NextResponse.json({ error: "Notebook not found" }, { status: 404 })
 
-  // Quick source check before starting the job
   const [hasSource] = await db
     .select({ id: sources.id })
     .from(sources)
@@ -132,12 +135,12 @@ export async function POST(req: Request) {
   } else {
     const [created] = await db
       .insert(studioOutputs)
-      .values({ notebookId, type: "quiz", status: "generating" })
+      .values({ notebookId, type: "flashcards", status: "generating" })
       .returning()
     jobOutputId = created.id
   }
 
-  after(() => runQuizGeneration(jobOutputId, notebookId, count, difficulty as Difficulty, focusTopic))
+  after(() => runFlashcardGeneration(jobOutputId, notebookId, count, difficulty as Difficulty, focusTopic))
 
   return NextResponse.json({ outputId: jobOutputId }, { status: 202 })
 }
