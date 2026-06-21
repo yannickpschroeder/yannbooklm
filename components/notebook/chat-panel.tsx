@@ -26,7 +26,7 @@ function MessageActions({ messageId, content }: { messageId: string; content: st
     const title = clean.slice(0, 60).trimEnd() + (clean.length > 60 ? "…" : "")
     window.dispatchEvent(
       new CustomEvent(NOTE_FROM_CHAT_EVENT, {
-        detail: { title, content: clean, sourceMessageId: messageId },
+        detail: { title, content: clean },
       })
     )
   }
