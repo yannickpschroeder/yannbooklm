@@ -2087,10 +2087,14 @@ export function StudioSidebar({
                                         const res = await fetch(`/api/studio/audio/${item.id}`)
                                         if (!res.ok) return
                                         const { url } = (await res.json()) as { url: string }
+                                        const audioRes = await fetch(url)
+                                        const blob = await audioRes.blob()
+                                        const objectUrl = URL.createObjectURL(blob)
                                         const a = document.createElement("a")
-                                        a.href = url
+                                        a.href = objectUrl
                                         a.download = `${item.title || "audio"}.mp3`
                                         a.click()
+                                        URL.revokeObjectURL(objectUrl)
                                       }}
                                     >
                                       <FileDown className="size-4" />

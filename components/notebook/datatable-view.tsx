@@ -72,7 +72,7 @@ export function DatatableView({ data }: { data: DatatableData }) {
       {/* Toolbar */}
       <div className="flex h-9 shrink-0 items-center justify-between border-b px-3">
         <span className="text-xs text-muted-foreground">
-          {data.rows.length} {data.rows.length === 1 ? "Zeile" : "Zeilen"} · {data.headers.length} Spalten
+          {t("datatableStats", { rows: data.rows.length, cols: data.headers.length })}
         </span>
         <div className="flex items-center gap-1">
           <Button

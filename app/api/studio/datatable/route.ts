@@ -17,6 +17,18 @@ const DatatableSchema = z.object({
 
 export type DatatableData = z.infer<typeof DatatableSchema> & {
   usedSources: { id: string; title: string; type: string }[]
+  language?: string
+}
+
+const LANG_NAMES: Record<string, string> = {
+  de: "Deutsch",
+  en: "Englisch",
+  fr: "Französisch",
+  es: "Spanisch",
+  it: "Italienisch",
+  pt: "Portugiesisch",
+  nl: "Niederländisch",
+  pl: "Polnisch",
 }
 
 async function getSourceContent(notebookId: string) {
@@ -41,7 +53,7 @@ async function getSourceContent(notebookId: string) {
   return { content: rows.map((c) => `[${c.title}]\n${c.content}`).join("\n\n---\n\n"), usedSources }
 }
 
-async function runDatatableGeneration(outputId: string, notebookId: string, focusTopic?: string) {
+async function runDatatableGeneration(outputId: string, notebookId: string, focusTopic?: string, language?: string) {
   try {
     const { content, usedSources } = await getSourceContent(notebookId)
     if (!content) {
@@ -50,6 +62,9 @@ async function runDatatableGeneration(outputId: string, notebookId: string, focu
     }
 
     const focusInstruction = focusTopic ? `\nFokus: "${focusTopic}"` : ""
+    const languageInstruction = language
+      ? `\n- Erstelle die Tabelle auf ${LANG_NAMES[language] ?? language}.`
+      : "\n- Verwende die Sprache der Quellen."
 
     const { object } = await generateObject({
       model: anthropic("claude-sonnet-4-6"),
@@ -61,8 +76,7 @@ Regeln:
 - headers: Spaltenüberschriften (1–20 Spalten, kurz und klar)
 - rows: Datenzeilen als String-Arrays. Jede Zeile muss genau so viele Einträge haben wie headers.
 - Extrahiere alle relevanten Entitäten, Kennzahlen, Vergleiche oder Listen die tabellarisch darstellbar sind.
-- Bevorzuge konkrete Zahlen, Namen und Fakten gegenüber abstrakten Beschreibungen.
-- Verwende die Sprache der Quellen.
+- Bevorzuge konkrete Zahlen, Namen und Fakten gegenüber abstrakten Beschreibungen.${languageInstruction}
 - Maximal 200 Zeilen, mindestens 1 Zeile.
 
 Quellen:
@@ -76,7 +90,7 @@ ${content}`,
       return padded.slice(0, object.headers.length)
     })
 
-    const data: DatatableData = { ...object, rows, usedSources }
+    const data: DatatableData = { ...object, rows, usedSources, language }
 
     await db
       .update(studioOutputs)
@@ -91,10 +105,11 @@ export async function POST(req: Request) {
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const { notebookId, outputId, focusTopic } = (await req.json()) as {
+  const { notebookId, outputId, focusTopic, language } = (await req.json()) as {
     notebookId: string
     outputId?: string
     focusTopic?: string
+    language?: string
   }
 
   const [notebook] = await db
@@ -129,7 +144,7 @@ export async function POST(req: Request) {
     jobOutputId = created.id
   }
 
-  after(() => runDatatableGeneration(jobOutputId, notebookId, focusTopic))
+  after(() => runDatatableGeneration(jobOutputId, notebookId, focusTopic, language))
 
   return NextResponse.json({ outputId: jobOutputId }, { status: 202 })
 }
