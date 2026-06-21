@@ -43,7 +43,7 @@ async function tryDeleteNotebook(page: Page, name: string) {
   if (!(await card.isVisible({ timeout: 3_000 }).catch(() => false))) return
   await card.hover()
   await card.locator('[data-slot="dropdown-menu-trigger"]').click({ force: true })
-  await page.getByText("Löschen").click()
+  await page.getByRole("menuitem", { name: "Löschen" }).click()
   await page.getByRole("button", { name: "Ja, löschen" }).click()
 }
 
@@ -66,8 +66,11 @@ const studioSidebar = (page: Page) => page.locator("aside").last()
 
 async function createMockQuizAndWait(page: Page) {
   await studioSidebar(page).getByRole("button", { name: "Quiz" }).click()
-  const quizItem = studioSidebar(page).locator("li").filter({ hasText: "Quiz" }).first()
-  await expect(quizItem).toBeVisible({ timeout: 10_000 })
+  // generateQuiz() opens the quiz view automatically — wait for it, then go back to the list
+  await expect(studioSidebar(page).getByRole("button", { name: "Neu generieren" })).toBeVisible({ timeout: 10_000 })
+  await studioSidebar(page).getByRole("button", { name: "Zurück" }).click()
+  const quizItem = studioSidebar(page).locator("ul li").first()
+  await expect(quizItem).toBeVisible({ timeout: 5_000 })
   return quizItem
 }
 
@@ -104,7 +107,7 @@ test.describe("Quiz @local", () => {
 
     await quizItem.hover()
     await quizItem.locator('[data-slot="dropdown-menu-trigger"]').click({ force: true })
-    await page.getByText("Umbenennen").click()
+    await page.getByRole("menuitem", { name: "Umbenennen" }).click()
 
     const input = page.getByRole("textbox")
     await input.clear()
@@ -127,7 +130,7 @@ test.describe("Quiz @local", () => {
 
     await quizItem.hover()
     await quizItem.locator('[data-slot="dropdown-menu-trigger"]').click({ force: true })
-    await page.getByText("Löschen").click()
+    await page.getByRole("menuitem", { name: "Löschen" }).click()
 
     await expect(studioSidebar(page).getByText("Noch keine Ergebnisse")).toBeVisible({ timeout: 5_000 })
   })
@@ -141,7 +144,7 @@ test.describe("Quiz @local", () => {
 
     await quizItem.hover()
     await quizItem.locator('[data-slot="dropdown-menu-trigger"]').click({ force: true })
-    await page.getByText("Prompt und Quellen ansehen").click()
+    await page.getByRole("menuitem", { name: "Prompt und Quellen ansehen" }).click()
 
     await expect(page.getByRole("dialog")).toBeVisible({ timeout: 5_000 })
     await expect(page.getByText("Mathe-Buch.pdf")).toBeVisible()
@@ -156,7 +159,7 @@ test.describe("Quiz @local", () => {
 
     await quizItem.hover()
     await quizItem.locator('[data-slot="dropdown-menu-trigger"]').click({ force: true })
-    await page.getByText("Prompt und Quellen ansehen").click()
+    await page.getByRole("menuitem", { name: "Prompt und Quellen ansehen" }).click()
 
     await expect(page.getByRole("dialog")).toBeVisible({ timeout: 5_000 })
 

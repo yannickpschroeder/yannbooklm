@@ -456,17 +456,40 @@ export function SourceSidebar({
           collapsed ? "w-12" : "w-96"
         )}
       >
-        {/* Collapsed state: just the toggle button */}
+        {/* Header */}
+        <div className={cn("flex h-12 shrink-0 items-center border-b", collapsed ? "justify-center px-0" : "justify-between px-3")}>
+          {!collapsed && <span className="text-sm font-medium">Quellen</span>}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-7 shrink-0"
+            onClick={() => setCollapsed(!collapsed)}
+          >
+            {collapsed ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
+          </Button>
+        </div>
+
         {collapsed ? (
-          <div className="flex h-12 items-center justify-center border-b">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-7"
-              onClick={() => setCollapsed(false)}
+          /* Collapsed icon strip */
+          <div className="flex flex-col items-center gap-1 overflow-y-auto py-2">
+            <button
+              title={t("addSource")}
+              onClick={() => setModalOpen(true)}
+              className="flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
             >
-              <PanelLeftOpen className="size-4" />
-            </Button>
+              <Plus className="size-4" />
+            </button>
+            {initialSources.length > 0 && <Separator className="my-1 w-6" />}
+            {initialSources.map((source) => (
+              <button
+                key={source.id}
+                title={source.title}
+                onClick={() => handleSourceClick(source)}
+                className="flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+              >
+                <SourceTypeIcon type={source.type} status={source.status} />
+              </button>
+            ))}
           </div>
         ) : activeChunk ? (
           /* Source detail view */
@@ -474,18 +497,6 @@ export function SourceSidebar({
         ) : (
           /* Normal sources list */
           <>
-            <div className="flex h-12 items-center justify-between border-b px-3">
-              <span className="text-sm font-medium">Quellen</span>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-7 shrink-0"
-                onClick={() => setCollapsed(true)}
-              >
-                <PanelLeftClose className="size-4" />
-              </Button>
-            </div>
-
             <div className="flex flex-col gap-2 overflow-y-auto p-3">
               <Button
                 variant="outline"

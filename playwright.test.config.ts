@@ -13,7 +13,7 @@ export default defineConfig({
     baseURL: "http://localhost:3001",
     trace: "on-first-retry",
   },
-  timeout: 10 * 60 * 1000, // 10 min per test (ingestion can be slow)
+  timeout: 60 * 1000,
   expect: {
     timeout: 30 * 1000,
   },

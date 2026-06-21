@@ -426,12 +426,46 @@ export function StudioSidebar({
         </Button>
       </div>
 
+      {collapsed && (
+        /* Collapsed icon strip */
+        <div className="flex flex-col items-center gap-1 overflow-y-auto py-2">
+          {STUDIO_TOOLS.map((tool) => {
+            const Icon = tool.icon
+            return (
+              <button
+                key={tool.id}
+                title={tStudio(tool.labelKey)}
+                onClick={() => setCollapsed(false)}
+                className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <Icon className="size-4" />
+              </button>
+            )
+          })}
+          {outputs.filter((item) => !item.loading).length > 0 && (
+            <Separator className="my-1 w-6" />
+          )}
+          {outputs
+            .filter((item) => !item.loading)
+            .map((item) => (
+              <button
+                key={item.id}
+                title={item.title || "—"}
+                onClick={() => handleOutputClick(item)}
+                className="flex size-8 items-center justify-center rounded-md transition-colors hover:bg-muted"
+              >
+                {outputIcon(item.kind)}
+              </button>
+            ))}
+        </div>
+      )}
+
       {!collapsed && (
         activeQuiz ? (
           /* ── Quiz view ── */
           <div className="flex flex-1 flex-col overflow-hidden">
             <div className="flex h-10 shrink-0 items-center justify-between border-b px-2">
-              <Button variant="ghost" size="icon" className="size-7 shrink-0" onClick={closeQuiz}>
+              <Button variant="ghost" size="icon" className="size-7 shrink-0" aria-label="Zurück" onClick={closeQuiz}>
                 <ChevronLeft className="size-4" />
               </Button>
               <span className="text-xs font-medium">{tStudio("quiz")}</span>
