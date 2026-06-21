@@ -29,10 +29,10 @@ function QuizCircleProgress({ current, total }: { current: number; total: number
   return (
     <div className="relative flex size-16 items-center justify-center">
       <svg className="-rotate-90" width="64" height="64">
-        <circle cx="32" cy="32" r={r} fill="none" stroke="hsl(var(--muted))" strokeWidth="5" />
+        <circle cx="32" cy="32" r={r} fill="none" className="stroke-muted-foreground/25" strokeWidth="5" />
         <circle
           cx="32" cy="32" r={r} fill="none"
-          stroke="hsl(var(--primary))" strokeWidth="5"
+          className="stroke-primary" strokeWidth="5"
           strokeDasharray={`${dash} ${circ}`}
           strokeLinecap="round"
         />
@@ -52,10 +52,11 @@ function CircleProgress({ correct, total }: { correct: number; total: number }) 
   return (
     <div className="relative flex size-32 items-center justify-center">
       <svg className="-rotate-90" width="128" height="128">
-        <circle cx="64" cy="64" r={r} fill="none" stroke="hsl(var(--muted))" strokeWidth="10" />
+        <circle cx="64" cy="64" r={r} fill="none" className="stroke-muted-foreground/25" strokeWidth="10" />
         <circle
           cx="64" cy="64" r={r} fill="none"
-          stroke="hsl(var(--primary))" strokeWidth="10"
+          className="stroke-primary"
+          strokeWidth="10"
           strokeDasharray={`${dash} ${circ}`}
           strokeLinecap="round"
         />
