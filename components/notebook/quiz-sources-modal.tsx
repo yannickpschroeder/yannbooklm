@@ -99,7 +99,7 @@ export function QuizSourcesModal({ open, onOpenChange, usedSources, onGenerate }
               <div className="grid grid-cols-2 gap-6">
                 <div>
                   <p className="mb-2 text-sm font-medium">Anzahl der Fragen</p>
-                  <div className="flex flex-col gap-2">
+                  <div className="flex flex-col items-start gap-2">
                     {COUNT_OPTIONS.map((o) => (
                       <button
                         key={o.value}
@@ -119,7 +119,7 @@ export function QuizSourcesModal({ open, onOpenChange, usedSources, onGenerate }
                 </div>
                 <div>
                   <p className="mb-2 text-sm font-medium">Schwierigkeitsgrad</p>
-                  <div className="flex flex-col gap-2">
+                  <div className="flex flex-col items-start gap-2">
                     {DIFFICULTY_OPTIONS.map((o) => (
                       <button
                         key={o.value}
