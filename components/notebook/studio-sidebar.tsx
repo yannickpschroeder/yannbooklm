@@ -69,6 +69,8 @@ import { SlidedeckRevisionModal } from "./slidedeck-revision-modal"
 import type { SlidedeckUsedSource } from "./slidedeck-modal"
 import { exportToGoogleSlides, slidesUrlToExportUrl } from "@/lib/google-slides-export"
 import type { SlideData } from "@/lib/google-slides-export"
+import { MindmapCanvas } from "./mindmap-canvas"
+import type { MindmapData } from "@/app/api/studio/mindmap/route"
 import { toast } from "sonner"
 import type { Note, StudioOutput } from "@/db/schema"
 
@@ -202,6 +204,7 @@ export function StudioSidebar({
   const [activeQuiz, setActiveQuiz] = useState<StudioOutput | null>(null)
   const [activeSlidedeck, setActiveSlidedeck] = useState<StudioOutput | null>(null)
   const [activeFlashcards, setActiveFlashcards] = useState<StudioOutput | null>(null)
+  const [activeMindmap, setActiveMindmap] = useState<StudioOutput | null>(null)
   const [slideViewerOpen, setSlideViewerOpen] = useState(false)
   const [slideViewerIndex, setSlideViewerIndex] = useState(0)
   const [revisionModalOpen, setRevisionModalOpen] = useState(false)
@@ -273,6 +276,9 @@ export function StudioSidebar({
     } else if (item.kind === "flashcards") {
       const output = studioOutputsList.find((o) => o.id === item.id)
       if (output) openFlashcards(output)
+    } else if (item.kind === "mindmap") {
+      const output = studioOutputsList.find((o) => o.id === item.id)
+      if (output) openMindmap(output)
     } else devTodo(item.kind)
   }
 
@@ -289,12 +295,16 @@ export function StudioSidebar({
   useEffect(() => {
     activeFlashcardsRef.current = activeFlashcards
   }, [activeFlashcards])
+  const activeMindmapRef = useRef(activeMindmap)
+  useEffect(() => {
+    activeMindmapRef.current = activeMindmap
+  }, [activeMindmap])
   const onNoteModeChangeRef = useRef(onNoteModeChange)
   useEffect(() => {
     onNoteModeChangeRef.current = onNoteModeChange
   }, [onNoteModeChange])
   // outputId → what to do when ready
-  const pendingActionsRef = useRef<Map<string, "open-quiz" | "create-slides" | "open-flashcards">>(
+  const pendingActionsRef = useRef<Map<string, "open-quiz" | "create-slides" | "open-flashcards" | "open-mindmap">>(
     new Map()
   )
   const processedIdsRef = useRef<Set<string>>(new Set())
@@ -359,12 +369,16 @@ export function StudioSidebar({
               setActiveFlashcards(output)
               setFlashcardsViewLoading(false)
             }
+            if (activeMindmapRef.current?.id === output.id) {
+              setActiveMindmap(output)
+            }
 
             if (action === "open-quiz") {
               setActiveQuiz(output)
               setActiveNote(null)
               setActiveSlidedeck(null)
               setActiveFlashcards(null)
+              setActiveMindmap(null)
               setCollapsed(false)
               onNoteModeChangeRef.current(true)
             } else if (action === "open-flashcards") {
@@ -372,6 +386,15 @@ export function StudioSidebar({
               setActiveNote(null)
               setActiveQuiz(null)
               setActiveSlidedeck(null)
+              setActiveMindmap(null)
+              setCollapsed(false)
+              onNoteModeChangeRef.current(true)
+            } else if (action === "open-mindmap") {
+              setActiveMindmap(output)
+              setActiveNote(null)
+              setActiveQuiz(null)
+              setActiveSlidedeck(null)
+              setActiveFlashcards(null)
               setCollapsed(false)
               onNoteModeChangeRef.current(true)
             } else if (action === "create-slides") {
@@ -424,6 +447,21 @@ export function StudioSidebar({
 
   function closeFlashcards() {
     setActiveFlashcards(null)
+    onNoteModeChange(false)
+  }
+
+  function openMindmap(output: StudioOutput) {
+    setActiveMindmap(output)
+    setActiveNote(null)
+    setActiveQuiz(null)
+    setActiveFlashcards(null)
+    setActiveSlidedeck(null)
+    setCollapsed(false)
+    onNoteModeChange(true)
+  }
+
+  function closeMindmap() {
+    setActiveMindmap(null)
     onNoteModeChange(false)
   }
 
@@ -616,6 +654,34 @@ export function StudioSidebar({
       }
     } catch {
       toast.error(tStudio("flashcardsError"))
+    }
+  }
+
+  async function generateMindmap(focusTopic?: string, existingOutputId?: string) {
+    try {
+      const res = await fetch("/api/studio/mindmap", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notebookId, focusTopic, outputId: existingOutputId }),
+      })
+      if (!res.ok) {
+        const { error } = (await res.json()) as { error: string }
+        toast.error(error === "NO_SOURCES" ? tStudio("mindmapNoSources") : tStudio("mindmapError"))
+        return
+      }
+      const { outputId } = (await res.json()) as { outputId: string }
+      const placeholder = makeGeneratingPlaceholder(outputId, "mindmap")
+
+      if (existingOutputId) {
+        setStudioOutputsList((prev) =>
+          prev.map((o) => (o.id === existingOutputId ? placeholder : o))
+        )
+      } else {
+        pendingActionsRef.current.set(outputId, "open-mindmap")
+        setStudioOutputsList((prev) => [placeholder, ...prev])
+      }
+    } catch {
+      toast.error(tStudio("mindmapError"))
     }
   }
 
@@ -948,7 +1014,7 @@ export function StudioSidebar({
                   {tStudio("quizRegenerate")}
                 </Button>
               </div>
-              {quizViewLoading ? (
+              {quizViewLoading || !activeQuiz.data ? (
                 <div className="text-muted-foreground flex flex-1 items-center justify-center text-sm">
                   {tStudio("quizGenerating")}
                 </div>
@@ -987,7 +1053,7 @@ export function StudioSidebar({
                   {tStudio("flashcardsRegenerate")}
                 </Button>
               </div>
-              {flashcardsViewLoading ? (
+              {flashcardsViewLoading || !activeFlashcards.data ? (
                 <div className="text-muted-foreground flex flex-1 items-center justify-center text-sm">
                   {tStudio("flashcardsGenerating")}
                 </div>
@@ -1298,6 +1364,40 @@ export function StudioSidebar({
                 </div>
               )
             })()
+          ) : activeMindmap ? (
+            /* ── Mindmap detail view ── */
+            <div className="flex flex-1 flex-col overflow-hidden">
+              <div className="flex h-10 shrink-0 items-center justify-between border-b px-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-7 shrink-0"
+                  aria-label={tCommon("back")}
+                  onClick={closeMindmap}
+                >
+                  <ChevronLeft className="size-4" />
+                </Button>
+                <span className="truncate px-1 text-xs font-medium">
+                  {activeMindmap.title ?? tStudio("mindmap")}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 shrink-0 text-xs"
+                  disabled={activeMindmap.status === "generating"}
+                  onClick={() => generateMindmap(undefined, activeMindmap.id)}
+                >
+                  {tStudio("mindmapRegenerate")}
+                </Button>
+              </div>
+              {activeMindmap.status === "generating" || !activeMindmap.data ? (
+                <div className="text-muted-foreground flex flex-1 items-center justify-center text-sm">
+                  {tStudio("mindmapGenerating")}
+                </div>
+              ) : (
+                <MindmapCanvas data={activeMindmap.data as MindmapData} />
+              )}
+            </div>
           ) : activeNote ? (
             /* ── Note detail view ── */
             <div className="flex flex-1 flex-col overflow-hidden">
@@ -1390,6 +1490,7 @@ export function StudioSidebar({
                           if (tool.id === "quiz") generateQuiz()
                           else if (tool.id === "slidedeck") generateSlidedeck()
                           else if (tool.id === "flashcards") generateFlashcards()
+                          else if (tool.id === "mindmap") generateMindmap()
                           else devTodo(tool.id)
                         }}
                       >
@@ -1635,6 +1736,26 @@ export function StudioSidebar({
                                         </>
                                       )
                                     })()}
+                                  </>
+                                ) : item.kind === "mindmap" ? (
+                                  <>
+                                    <DropdownMenuItem
+                                      className="whitespace-nowrap"
+                                      onClick={() => {
+                                        const o = studioOutputsList.find((x) => x.id === item.id)
+                                        if (o) generateMindmap(undefined, o.id)
+                                      }}
+                                    >
+                                      <RefreshCw className="size-4" />
+                                      {tStudio("mindmapRegenerate")}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      className="text-destructive focus:text-destructive whitespace-nowrap"
+                                      onClick={() => handleDeleteStudioOutput(item.id)}
+                                    >
+                                      <Trash2 className="size-4" />
+                                      {tStudio("delete")}
+                                    </DropdownMenuItem>
                                   </>
                                 ) : item.kind === "flashcards" ? (
                                   <>
