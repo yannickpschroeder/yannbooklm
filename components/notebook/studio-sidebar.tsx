@@ -70,6 +70,7 @@ import type { SlidedeckUsedSource } from "./slidedeck-modal"
 import { exportToGoogleSlides, slidesUrlToExportUrl } from "@/lib/google-slides-export"
 import type { SlideData } from "@/lib/google-slides-export"
 import { MindmapCanvas } from "./mindmap-canvas"
+import { MindmapSourcesModal } from "./mindmap-sources-modal"
 import type { MindmapData } from "@/app/api/studio/mindmap/route"
 import { DatatableView } from "./datatable-view"
 import type { DatatableData } from "@/app/api/studio/datatable/route"
@@ -220,6 +221,7 @@ export function StudioSidebar({
   const [renameValue, setRenameValue] = useState("")
   const [sourcesModalOutput, setSourcesModalOutput] = useState<StudioOutput | null>(null)
   const [flashcardsModalOutput, setFlashcardsModalOutput] = useState<StudioOutput | null>(null)
+  const [mindmapModalOutput, setMindmapModalOutput] = useState<StudioOutput | null>(null)
   const [slidedeckModalOutput, setSlidedeckModalOutput] = useState<StudioOutput | null>(null)
   const [slidedeckModalView, setSlidedeckModalView] = useState<"sources" | "customize">("sources")
   const [editTitle, setEditTitle] = useState("")
@@ -1842,13 +1844,40 @@ export function StudioSidebar({
                                   <>
                                     <DropdownMenuItem
                                       className="whitespace-nowrap"
-                                      onClick={() => {
-                                        const o = studioOutputsList.find((x) => x.id === item.id)
-                                        if (o) generateMindmap(undefined, o.id)
+                                      onClick={async () => {
+                                        const res = await fetch(`/api/studio/mindmap/${item.id}/share`, { method: "POST" })
+                                        if (!res.ok) { toast.error(tStudio("shareError")); return }
+                                        const { token } = (await res.json()) as { token: string }
+                                        const url = `${window.location.origin}/share/${token}`
+                                        if (navigator.share) {
+                                          await navigator.share({ title: item.title, url }).catch(() => undefined)
+                                        } else {
+                                          await navigator.clipboard.writeText(url)
+                                          toast.success(tStudio("shareCopied"))
+                                        }
                                       }}
                                     >
-                                      <RefreshCw className="size-4" />
-                                      {tStudio("mindmapRegenerate")}
+                                      <Share2 className="size-4" />
+                                      {tStudio("share")}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      className="whitespace-nowrap"
+                                      onClick={() => {
+                                        setRenamingOutput(studioOutputsList.find((o) => o.id === item.id) ?? null)
+                                        setRenameValue(item.title)
+                                      }}
+                                    >
+                                      <Pencil className="size-4" />
+                                      {tStudio("rename")}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      className="whitespace-nowrap"
+                                      onClick={() =>
+                                        setMindmapModalOutput(studioOutputsList.find((o) => o.id === item.id) ?? null)
+                                      }
+                                    >
+                                      <History className="size-4" />
+                                      {tStudio("viewPrompt")}
                                     </DropdownMenuItem>
                                     <DropdownMenuItem
                                       className="text-destructive focus:text-destructive whitespace-nowrap"
@@ -2071,6 +2100,12 @@ export function StudioSidebar({
           onStartViewer={() => { setSlideViewerIndex(0); setSlideViewerOpen(true) }}
         />
       )}
+      <MindmapSourcesModal
+        open={!!mindmapModalOutput}
+        onOpenChange={(open) => !open && setMindmapModalOutput(null)}
+        usedSources={((mindmapModalOutput?.data as MindmapData)?.usedSources ?? []) as MindmapData["usedSources"]}
+        onGenerate={(focusTopic) => generateMindmap(focusTopic, mindmapModalOutput?.id)}
+      />
     </>
   )
 }
