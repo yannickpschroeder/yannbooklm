@@ -74,7 +74,8 @@ import { MindmapCanvas } from "./mindmap-canvas"
 import { MindmapSourcesModal } from "./mindmap-sources-modal"
 import type { MindmapData } from "@/app/api/studio/mindmap/route"
 import { AudioPlayer } from "./audio-player"
-import type { AudioData } from "@/app/api/studio/audio/route"
+import { AudioSourcesModal } from "./audio-sources-modal"
+import type { AudioData, AudioFormat, AudioLength } from "@/app/api/studio/audio/route"
 import { DatatableView } from "./datatable-view"
 import { DatatableCustomizeModal } from "./datatable-customize-modal"
 import { DatatableSourcesModal } from "./datatable-sources-modal"
@@ -245,6 +246,7 @@ export function StudioSidebar({
   const [sourcesModalOutput, setSourcesModalOutput] = useState<StudioOutput | null>(null)
   const [flashcardsModalOutput, setFlashcardsModalOutput] = useState<StudioOutput | null>(null)
   const [mindmapModalOutput, setMindmapModalOutput] = useState<StudioOutput | null>(null)
+  const [audioModalOutput, setAudioModalOutput] = useState<StudioOutput | null>(null)
   const [slidedeckModalOutput, setSlidedeckModalOutput] = useState<StudioOutput | null>(null)
   const [slidedeckModalView, setSlidedeckModalView] = useState<"sources" | "customize">("sources")
   const [editTitle, setEditTitle] = useState("")
@@ -913,12 +915,15 @@ export function StudioSidebar({
     }
   }
 
-  async function generateAudio(existingOutputId?: string) {
+  async function generateAudio(
+    params?: { format?: AudioFormat; language?: string; length?: AudioLength; focusTopic?: string },
+    existingOutputId?: string
+  ) {
     try {
       const res = await fetch("/api/studio/audio", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ notebookId, outputId: existingOutputId }),
+        body: JSON.stringify({ notebookId, outputId: existingOutputId, ...params }),
       })
       if (!res.ok) {
         const { error } = (await res.json()) as { error: string }
@@ -1657,7 +1662,7 @@ export function StudioSidebar({
                   size="sm"
                   className="h-7 shrink-0 text-xs"
                   disabled={activeAudio.status === "generating"}
-                  onClick={() => generateAudio(activeAudio.id)}
+                  onClick={() => generateAudio(undefined, activeAudio.id)}
                 >
                   {tStudio("audioRegenerate")}
                 </Button>
@@ -2054,6 +2059,20 @@ export function StudioSidebar({
                                   <>
                                     <DropdownMenuItem
                                       className="whitespace-nowrap"
+                                      onClick={async () => {
+                                        const res = await fetch(`/api/studio/audio/${item.id}/share`, { method: "POST" })
+                                        if (!res.ok) { toast.error(tStudio("shareError")); return }
+                                        const { token } = (await res.json()) as { token: string }
+                                        const url = `${window.location.origin}/share/${token}`
+                                        if (navigator.share) await navigator.share({ title: item.title, url }).catch(() => undefined)
+                                        else { await navigator.clipboard.writeText(url); toast.success(tStudio("shareCopied")) }
+                                      }}
+                                    >
+                                      <Share2 className="size-4" />
+                                      {tStudio("share")}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      className="whitespace-nowrap"
                                       onClick={() => {
                                         setRenamingOutput(studioOutputsList.find((o) => o.id === item.id) ?? null)
                                         setRenameValue(item.title)
@@ -2064,10 +2083,25 @@ export function StudioSidebar({
                                     </DropdownMenuItem>
                                     <DropdownMenuItem
                                       className="whitespace-nowrap"
-                                      onClick={() => generateAudio(item.id)}
+                                      onClick={async () => {
+                                        const res = await fetch(`/api/studio/audio/${item.id}`)
+                                        if (!res.ok) return
+                                        const { url } = (await res.json()) as { url: string }
+                                        const a = document.createElement("a")
+                                        a.href = url
+                                        a.download = `${item.title || "audio"}.mp3`
+                                        a.click()
+                                      }}
                                     >
-                                      <RefreshCw className="size-4" />
-                                      {tStudio("audioRegenerate")}
+                                      <FileDown className="size-4" />
+                                      {tStudio("audioDownload")}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      className="whitespace-nowrap"
+                                      onClick={() => setAudioModalOutput(studioOutputsList.find((o) => o.id === item.id) ?? null)}
+                                    >
+                                      <History className="size-4" />
+                                      {tStudio("viewPrompt")}
                                     </DropdownMenuItem>
                                     <DropdownMenuItem
                                       className="text-destructive focus:text-destructive whitespace-nowrap"
@@ -2553,6 +2587,15 @@ export function StudioSidebar({
         onOpenChange={(open) => !open && setMindmapModalOutput(null)}
         usedSources={((mindmapModalOutput?.data as MindmapData)?.usedSources ?? []) as MindmapData["usedSources"]}
         onGenerate={(focusTopic) => generateMindmap(focusTopic, mindmapModalOutput?.id)}
+      />
+      <AudioSourcesModal
+        open={!!audioModalOutput}
+        onOpenChange={(open) => !open && setAudioModalOutput(null)}
+        usedSources={((audioModalOutput?.data as AudioData)?.usedSources ?? [])}
+        currentFormat={(audioModalOutput?.data as AudioData)?.format}
+        currentLanguage={(audioModalOutput?.data as AudioData)?.language}
+        currentLength={(audioModalOutput?.data as AudioData)?.length}
+        onGenerate={(params) => generateAudio(params, audioModalOutput?.id)}
       />
       <DatatableCustomizeModal
         key={datatableModal ? `${datatableModal.view}-${datatableModal.output?.id ?? "new"}` : "closed"}

@@ -8,12 +8,21 @@ import { SharedFlashcardsClient } from "./shared-flashcards-client"
 import type { FlashcardData } from "@/components/notebook/flashcard-view"
 import { SharedMindmapClient } from "./shared-mindmap-client"
 import type { MindmapData } from "@/app/api/studio/mindmap/route"
+import { ReportView } from "@/components/notebook/report-view"
+import type { ReportData } from "@/components/notebook/report-view"
+import { SharedAudioClient } from "./shared-audio-client"
+import type { AudioData } from "@/app/api/studio/audio/route"
 
 export default async function SharePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params
 
   const [output] = await db
-    .select({ id: studioOutputs.id, type: studioOutputs.type, title: studioOutputs.title, data: studioOutputs.data })
+    .select({
+      id: studioOutputs.id,
+      type: studioOutputs.type,
+      title: studioOutputs.title,
+      data: studioOutputs.data,
+    })
     .from(studioOutputs)
     .where(eq(studioOutputs.shareToken, token))
     .limit(1)
@@ -21,9 +30,10 @@ export default async function SharePage({ params }: { params: Promise<{ token: s
   if (!output || !output.data) notFound()
 
   const isMindmap = output.type === "mindmap"
+  const isAudio = output.type === "audio"
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-background">
+    <div className="bg-background flex h-screen flex-col overflow-hidden">
       <header className="flex h-12 shrink-0 items-center border-b px-4">
         <span className="text-sm font-semibold">YannBookLM</span>
         {output.title && (
@@ -34,6 +44,14 @@ export default async function SharePage({ params }: { params: Promise<{ token: s
         <div className="min-h-0 flex-1">
           <SharedMindmapClient data={output.data as MindmapData} />
         </div>
+      ) : isAudio ? (
+        <main className="flex-1 overflow-y-auto">
+          <SharedAudioClient shareToken={token} data={output.data as AudioData} />
+        </main>
+      ) : output.type === "report" ? (
+        <main className="mx-auto w-full max-w-2xl flex-1 overflow-y-auto">
+          <ReportView data={output.data as ReportData} readonly />
+        </main>
       ) : (
         <main className="mx-auto w-full max-w-4xl flex-1 overflow-y-auto px-6 py-6">
           {output.type === "quiz" ? (

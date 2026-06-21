@@ -18,7 +18,10 @@ export const maxDuration = 10
 const VOICE_A: VoiceId = "Vicki"
 const VOICE_B: VoiceId = "Daniel"
 
-// ─── Schema ───────────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+export type AudioFormat = "detailed-analysis" | "summary" | "critical-review" | "discussion"
+export type AudioLength = "short" | "standard"
 
 const ScriptSchema = z.object({
   turns: z.array(
@@ -34,6 +37,46 @@ export type AudioData = {
   turns: AudioTurn[]
   s3Key: string
   usedSources: { id: string; title: string; type: string }[]
+  format?: AudioFormat
+  language?: string
+  length?: AudioLength
+  focusTopic?: string
+}
+
+// ─── Prompt builder ───────────────────────────────────────────────────────────
+
+function buildPrompt(
+  content: string,
+  format: AudioFormat,
+  language: string,
+  length: AudioLength,
+  focusTopic?: string
+): string {
+  const wordCount = length === "short" ? "400–500 Wörter (ca. 1,5 Minuten)" : "800–1000 Wörter (ca. 3 Minuten)"
+
+  const formatInstructions: Record<AudioFormat, string> = {
+    "detailed-analysis": "eine lebhafte Unterhaltung, bei der die Themen in den Quellen analysiert und miteinander in Zusammenhang gebracht werden",
+    "summary": "eine kompakte Übersicht, die die wichtigsten Informationen aus den Quellen schnell vermittelt",
+    "critical-review": "eine sachkundige, konstruktive Bewertung der Quellen, die Stärken und Schwächen benennt",
+    "discussion": "eine aufschlussreiche Diskussion, die die Quellen aus verschiedenen Perspektiven beleuchtet",
+  }
+
+  const focusInstruction = focusTopic
+    ? `\nSchwerpunkt: ${focusTopic}`
+    : ""
+
+  return `Du bist zwei Podcast-Hosts (Host A und Host B). Erstelle ein Dialogskript im Stil von: ${formatInstructions[format]}.
+
+Regeln:
+- Gesamtlänge: ${wordCount}
+- Abwechselnde Redner: mindestens 4, maximal 30 Turns
+- Jeder Turn: vollständige Sätze, natürlich gesprochen
+- Kein Intro/Outro wie "Willkommen" oder "Tschüss"
+- Schreibe ausschließlich auf ${language}
+- Keine Nennung von Hostnamen in den Turns selbst${focusInstruction}
+
+Quellen:
+${content}`
 }
 
 // ─── Source fetcher ───────────────────────────────────────────────────────────
@@ -88,7 +131,14 @@ async function synthesizeTurn(text: string, voice: VoiceId): Promise<Buffer> {
 
 // ─── Background job ───────────────────────────────────────────────────────────
 
-async function runAudioGeneration(outputId: string, notebookId: string) {
+async function runAudioGeneration(
+  outputId: string,
+  notebookId: string,
+  format: AudioFormat,
+  language: string,
+  length: AudioLength,
+  focusTopic?: string
+) {
   try {
     const { content, usedSources } = await getSourceContent(notebookId)
     if (!content) {
@@ -99,21 +149,9 @@ async function runAudioGeneration(outputId: string, notebookId: string) {
     const { object } = await generateObject({
       model: anthropic("claude-sonnet-4-6"),
       schema: ScriptSchema,
-      prompt: `Du bist zwei Podcast-Hosts (Host A und Host B), die ein angeregtes, informatives Gespräch über folgende Quellen führen. Erstelle ein natürliches Dialogskript.
-
-Regeln:
-- Gesamtlänge: 800–1000 Wörter (ca. 3 Minuten Audio)
-- Abwechselnde Redner: mindestens 4, maximal 30 Turns
-- Jeder Turn: vollständige Sätze, natürlich gesprochen
-- Kein Intro/Outro wie "Willkommen" oder "Tschüss"
-- Verwende die Sprache der Quellen (meist Deutsch)
-- Keine Nennung von Hostnamen in den Turns selbst
-
-Quellen:
-${content}`,
+      prompt: buildPrompt(content, format, language, length, focusTopic),
     })
 
-    // Synthesize all turns in parallel, then concatenate buffers
     const buffers = await Promise.all(
       object.turns.map((turn) =>
         synthesizeTurn(turn.text, turn.speaker === "A" ? VOICE_A : VOICE_B)
@@ -131,7 +169,7 @@ ${content}`,
       })
     )
 
-    const data: AudioData = { turns: object.turns, s3Key, usedSources }
+    const data: AudioData = { turns: object.turns, s3Key, usedSources, format, language, length, focusTopic }
 
     await db
       .update(studioOutputs)
@@ -149,9 +187,20 @@ export async function POST(req: Request) {
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const { notebookId, outputId } = (await req.json()) as {
+  const {
+    notebookId,
+    outputId,
+    format = "detailed-analysis",
+    language = "Deutsch",
+    length = "standard",
+    focusTopic,
+  } = (await req.json()) as {
     notebookId: string
     outputId?: string
+    format?: AudioFormat
+    language?: string
+    length?: AudioLength
+    focusTopic?: string
   }
 
   const [notebook] = await db
@@ -186,7 +235,7 @@ export async function POST(req: Request) {
     jobOutputId = created.id
   }
 
-  after(() => runAudioGeneration(jobOutputId, notebookId))
+  after(() => runAudioGeneration(jobOutputId, notebookId, format, language, length, focusTopic))
 
   return NextResponse.json({ outputId: jobOutputId }, { status: 202 })
 }
