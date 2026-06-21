@@ -133,7 +133,7 @@ export function QuizView({
   // ── Results screen ──────────────────────────────────────────────────────────
   if (mode === "results") {
     return (
-      <div className="flex flex-1 flex-col gap-6 overflow-y-auto p-5">
+      <div className={cn("flex flex-1 flex-col gap-6 overflow-y-auto p-5", readOnly && "items-center")}>
         <h2 className="text-xl font-bold">Geschafft! Quiz abgeschlossen.</h2>
 
         <div className="flex items-center gap-6">
@@ -197,7 +197,7 @@ export function QuizView({
           )}
         </div>
 
-        <div className="flex gap-2 border-t pt-4">
+        <div className={cn("flex gap-2 border-t pt-4", readOnly && "justify-center")}>
           <Button variant="outline" size="sm" onClick={() => restart(true)}>
             Quiz noch einmal ansehen
           </Button>
