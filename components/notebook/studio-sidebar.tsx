@@ -14,6 +14,9 @@ import {
   Library,
   FileText,
   Table2,
+  Share2,
+  Pencil,
+  History,
 } from "lucide-react"
 import {
   FaMicrophone,
@@ -336,6 +339,12 @@ export function StudioSidebar({
     }
   }
 
+  async function handleDeleteStudioOutput(outputId: string) {
+    setStudioOutputsList((prev) => prev.filter((o) => o.id !== outputId))
+    if (activeQuiz?.id === outputId) closeQuiz()
+    await fetch(`/api/studio/quiz/${outputId}`, { method: "DELETE" })
+  }
+
   async function handleDeleteNote(noteId: string) {
     if (debounceRef.current) clearTimeout(debounceRef.current)
     setNotesList((prev) => prev.filter((n) => n.id !== noteId))
@@ -524,25 +533,39 @@ export function StudioSidebar({
                             <MoreHorizontal className="size-4 text-muted-foreground" />
                           </DropdownMenuTrigger>
                           <DropdownMenuContent side="bottom" align="end" className="w-max">
-                            <DropdownMenuItem className="whitespace-nowrap" onClick={() => item.note && setNoteAsSource(item.note.title, item.note.content)} disabled={!item.note}>
-                              <BookmarkPlus className="size-4" />{t("setAsSource")}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="whitespace-nowrap" onClick={handleSetAllAsSource}>
-                              <Library className="size-4" />{t("setAllAsSource")}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="whitespace-nowrap" onClick={() => item.note && handleExportToDocs(item.note)} disabled={!item.note}>
-                              <FileText className="size-4" />{t("exportToDocs")}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="whitespace-nowrap" onClick={() => item.note && handleExportToSheets(item.note)} disabled={!item.note}>
-                              <Table2 className="size-4" />{t("exportToSheets")}
-                            </DropdownMenuItem>
-                            {item.kind === "note" && (
-                              <DropdownMenuItem
-                                className="whitespace-nowrap text-destructive focus:text-destructive"
-                                onClick={() => handleDeleteNote(item.id)}
-                              >
-                                <Trash2 className="size-4" />{t("deleteNote")}
-                              </DropdownMenuItem>
+                            {item.kind === "note" ? (
+                              <>
+                                <DropdownMenuItem className="whitespace-nowrap" onClick={() => item.note && setNoteAsSource(item.note.title, item.note.content)} disabled={!item.note}>
+                                  <BookmarkPlus className="size-4" />{t("setAsSource")}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem className="whitespace-nowrap" onClick={handleSetAllAsSource}>
+                                  <Library className="size-4" />{t("setAllAsSource")}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem className="whitespace-nowrap" onClick={() => item.note && handleExportToDocs(item.note)} disabled={!item.note}>
+                                  <FileText className="size-4" />{t("exportToDocs")}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem className="whitespace-nowrap" onClick={() => item.note && handleExportToSheets(item.note)} disabled={!item.note}>
+                                  <Table2 className="size-4" />{t("exportToSheets")}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem className="whitespace-nowrap text-destructive focus:text-destructive" onClick={() => handleDeleteNote(item.id)}>
+                                  <Trash2 className="size-4" />{t("deleteNote")}
+                                </DropdownMenuItem>
+                              </>
+                            ) : (
+                              <>
+                                <DropdownMenuItem className="whitespace-nowrap" onClick={() => devTodo("share")}>
+                                  <Share2 className="size-4" />{tStudio("share")}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem className="whitespace-nowrap" onClick={() => devTodo("rename")}>
+                                  <Pencil className="size-4" />{tStudio("rename")}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem className="whitespace-nowrap" onClick={() => devTodo("viewPrompt")}>
+                                  <History className="size-4" />{tStudio("viewPrompt")}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem className="whitespace-nowrap text-destructive focus:text-destructive" onClick={() => handleDeleteStudioOutput(item.id)}>
+                                  <Trash2 className="size-4" />{tStudio("delete")}
+                                </DropdownMenuItem>
+                              </>
                             )}
                           </DropdownMenuContent>
                         </DropdownMenu>

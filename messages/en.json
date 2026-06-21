@@ -66,7 +66,11 @@
     "quizRegenerate": "Regenerate",
     "quizGenerating": "Generating quiz…",
     "quizNoSources": "No sources available. Please add sources first.",
-    "quizError": "Failed to generate quiz"
+    "quizError": "Failed to generate quiz",
+    "share": "Share",
+    "rename": "Rename",
+    "viewPrompt": "View prompt and sources",
+    "delete": "Delete"
   },
   "notes": {
     "title": "Notes",
