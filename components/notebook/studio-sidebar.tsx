@@ -47,7 +47,8 @@ import { createNote, updateNote, deleteNote } from "@/lib/actions/notes"
 import { exportNoteToGoogleDocs, exportNoteToGoogleSheets } from "@/lib/google-docs-export"
 import { NoteEditor } from "./note-editor"
 import { QuizView } from "./quiz-view"
-import type { QuizData } from "./quiz-view"
+import type { QuizData, QuizUsedSource } from "./quiz-view"
+import { QuizSourcesModal } from "./quiz-sources-modal"
 import { toast } from "sonner"
 import type { Note, StudioOutput } from "@/db/schema"
 
@@ -123,6 +124,7 @@ export function StudioSidebar({
   const [quizLoading, setQuizLoading] = useState(false)
   const [renamingOutput, setRenamingOutput] = useState<StudioOutput | null>(null)
   const [renameValue, setRenameValue] = useState("")
+  const [sourcesModalOutput, setSourcesModalOutput] = useState<StudioOutput | null>(null)
   const [editTitle, setEditTitle] = useState("")
   const [editContent, setEditContent] = useState("")
   const [isSettingSource, setIsSettingSource] = useState(false)
@@ -187,13 +189,13 @@ export function StudioSidebar({
     onNoteModeChange(false)
   }
 
-  async function generateQuiz(focusTopic?: string, outputId?: string) {
+  async function generateQuiz(focusTopic?: string, outputId?: string, count?: number, difficulty?: string) {
     setQuizLoading(true)
     try {
       const res = await fetch("/api/studio/quiz", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ notebookId, focusTopic, outputId }),
+        body: JSON.stringify({ notebookId, focusTopic, outputId, count, difficulty }),
       })
       if (!res.ok) {
         const { error } = (await res.json()) as { error: string }
@@ -597,7 +599,7 @@ export function StudioSidebar({
                                 <DropdownMenuItem className="whitespace-nowrap" onClick={() => { setRenamingOutput(studioOutputsList.find((o) => o.id === item.id) ?? null); setRenameValue(item.title) }}>
                                   <Pencil className="size-4" />{tStudio("rename")}
                                 </DropdownMenuItem>
-                                <DropdownMenuItem className="whitespace-nowrap" onClick={() => devTodo("viewPrompt")}>
+                                <DropdownMenuItem className="whitespace-nowrap" onClick={() => setSourcesModalOutput(studioOutputsList.find((o) => o.id === item.id) ?? null)}>
                                   <History className="size-4" />{tStudio("viewPrompt")}
                                 </DropdownMenuItem>
                                 <DropdownMenuItem className="whitespace-nowrap text-destructive focus:text-destructive" onClick={() => handleDeleteStudioOutput(item.id)}>
@@ -646,6 +648,14 @@ export function StudioSidebar({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    <QuizSourcesModal
+      open={!!sourcesModalOutput}
+      onOpenChange={(open) => !open && setSourcesModalOutput(null)}
+      usedSources={((sourcesModalOutput?.data as QuizData)?.usedSources ?? []) as QuizUsedSource[]}
+      onGenerate={({ count, difficulty, focusTopic }) =>
+        generateQuiz(focusTopic, sourcesModalOutput?.id, count, difficulty)
+      }
+    />
     </>
   )
 }

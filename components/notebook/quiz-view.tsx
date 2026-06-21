@@ -12,10 +12,13 @@ export type QuizQuestion = {
   explanation: string
 }
 
+export type QuizUsedSource = { id: string; title: string; type: string }
+
 export type QuizData = {
   questions: QuizQuestion[]
   topics: string[]
   suggestions: string[]
+  usedSources?: QuizUsedSource[]
 }
 
 type AnswerState = { selected: number | null; skipped: boolean }
