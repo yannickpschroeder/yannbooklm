@@ -187,7 +187,8 @@ export function StudioSidebar({
         else toast.error(tStudio("quizError"))
         return
       }
-      const output = (await res.json()) as StudioOutput
+      const raw = (await res.json()) as StudioOutput & { createdAt: string }
+      const output: StudioOutput = { ...raw, createdAt: new Date(raw.createdAt) }
       if (outputId) {
         setStudioOutputsList((prev) => prev.map((o) => (o.id === outputId ? output : o)))
       } else {
