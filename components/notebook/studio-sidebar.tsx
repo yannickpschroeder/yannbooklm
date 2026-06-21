@@ -73,6 +73,8 @@ import type { SlideData } from "@/lib/google-slides-export"
 import { MindmapCanvas } from "./mindmap-canvas"
 import { MindmapSourcesModal } from "./mindmap-sources-modal"
 import type { MindmapData } from "@/app/api/studio/mindmap/route"
+import { AudioPlayer } from "./audio-player"
+import type { AudioData } from "@/app/api/studio/audio/route"
 import { DatatableView } from "./datatable-view"
 import { DatatableCustomizeModal } from "./datatable-customize-modal"
 import type { DatatableData } from "@/app/api/studio/datatable/route"
@@ -223,6 +225,7 @@ export function StudioSidebar({
   const [activeSlidedeck, setActiveSlidedeck] = useState<StudioOutput | null>(null)
   const [activeFlashcards, setActiveFlashcards] = useState<StudioOutput | null>(null)
   const [activeMindmap, setActiveMindmap] = useState<StudioOutput | null>(null)
+  const [activeAudio, setActiveAudio] = useState<StudioOutput | null>(null)
   const [activeDatatable, setActiveDatatable] = useState<StudioOutput | null>(null)
   const [datatableModal, setDatatableModal] = useState<{ view: "sources" | "customize"; output: StudioOutput | null } | null>(null)
   const [activeReport, setActiveReport] = useState<StudioOutput | null>(null)
@@ -302,6 +305,9 @@ export function StudioSidebar({
     } else if (item.kind === "mindmap") {
       const output = studioOutputsList.find((o) => o.id === item.id)
       if (output) openMindmap(output)
+    } else if (item.kind === "audio") {
+      const output = studioOutputsList.find((o) => o.id === item.id)
+      if (output) openAudio(output)
     } else if (item.kind === "datatable") {
       const output = studioOutputsList.find((o) => o.id === item.id)
       if (output) openDatatable(output)
@@ -328,6 +334,10 @@ export function StudioSidebar({
   useEffect(() => {
     activeMindmapRef.current = activeMindmap
   }, [activeMindmap])
+  const activeAudioRef = useRef(activeAudio)
+  useEffect(() => {
+    activeAudioRef.current = activeAudio
+  }, [activeAudio])
   const activeDatatableRef = useRef(activeDatatable)
   useEffect(() => {
     activeDatatableRef.current = activeDatatable
@@ -341,7 +351,7 @@ export function StudioSidebar({
     onNoteModeChangeRef.current = onNoteModeChange
   }, [onNoteModeChange])
   // outputId → what to do when ready
-  const pendingActionsRef = useRef<Map<string, "open-quiz" | "create-slides" | "open-flashcards" | "open-mindmap" | "open-datatable" | "open-report">>(
+  const pendingActionsRef = useRef<Map<string, "open-quiz" | "create-slides" | "open-flashcards" | "open-mindmap" | "open-audio" | "open-datatable" | "open-report">>(
     new Map()
   )
   const processedIdsRef = useRef<Set<string>>(new Set())
@@ -409,6 +419,9 @@ export function StudioSidebar({
             if (activeMindmapRef.current?.id === output.id) {
               setActiveMindmap(output)
             }
+            if (activeAudioRef.current?.id === output.id) {
+              setActiveAudio(output)
+            }
             if (activeDatatableRef.current?.id === output.id) {
               setActiveDatatable(output)
             }
@@ -438,6 +451,15 @@ export function StudioSidebar({
               setActiveQuiz(null)
               setActiveSlidedeck(null)
               setActiveFlashcards(null)
+              setCollapsed(false)
+              onNoteModeChangeRef.current(true)
+            } else if (action === "open-audio") {
+              setActiveAudio(output)
+              setActiveNote(null)
+              setActiveQuiz(null)
+              setActiveSlidedeck(null)
+              setActiveFlashcards(null)
+              setActiveMindmap(null)
               setCollapsed(false)
               onNoteModeChangeRef.current(true)
             } else if (action === "open-datatable") {
@@ -527,6 +549,24 @@ export function StudioSidebar({
     onNoteModeChange(false)
   }
 
+  function openAudio(output: StudioOutput) {
+    setActiveAudio(output)
+    setActiveNote(null)
+    setActiveQuiz(null)
+    setActiveFlashcards(null)
+    setActiveSlidedeck(null)
+    setActiveMindmap(null)
+    setActiveDatatable(null)
+    setActiveReport(null)
+    setCollapsed(false)
+    onNoteModeChange(true)
+  }
+
+  function closeAudio() {
+    setActiveAudio(null)
+    onNoteModeChange(false)
+  }
+
   function openDatatable(output: StudioOutput) {
     setActiveDatatable(output)
     setActiveNote(null)
@@ -534,6 +574,7 @@ export function StudioSidebar({
     setActiveFlashcards(null)
     setActiveSlidedeck(null)
     setActiveMindmap(null)
+    setActiveReport(null)
     setCollapsed(false)
     onNoteModeChange(true)
   }
@@ -854,6 +895,35 @@ export function StudioSidebar({
     }
   }
 
+  async function generateAudio(existingOutputId?: string) {
+    try {
+      const res = await fetch("/api/studio/audio", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notebookId, outputId: existingOutputId }),
+      })
+      if (!res.ok) {
+        const { error } = (await res.json()) as { error: string }
+        toast.error(error === "NO_SOURCES" ? tStudio("audioNoSources") : tStudio("audioError"))
+        return
+      }
+      const { outputId } = (await res.json()) as { outputId: string }
+      const placeholder = makeGeneratingPlaceholder(outputId, "audio")
+
+      if (existingOutputId) {
+        setStudioOutputsList((prev) =>
+          prev.map((o) => (o.id === existingOutputId ? placeholder : o))
+        )
+        if (activeAudioRef.current?.id === existingOutputId) setActiveAudio(placeholder)
+      } else {
+        pendingActionsRef.current.set(outputId, "open-audio")
+        setStudioOutputsList((prev) => [placeholder, ...prev])
+      }
+    } catch {
+      toast.error(tStudio("audioError"))
+    }
+  }
+
   async function generateSlidedeck(
     params?: {
       format?: string
@@ -1035,11 +1105,12 @@ export function StudioSidebar({
   async function handleRenameStudioOutput() {
     if (!renamingOutput || !renameValue.trim()) return
     const apiBase =
-      renamingOutput.type === "slidedeck"
-        ? "slidedeck"
-        : renamingOutput.type === "flashcards"
-          ? "flashcards"
-          : "quiz"
+      renamingOutput.type === "slidedeck" ? "slidedeck"
+      : renamingOutput.type === "flashcards" ? "flashcards"
+      : renamingOutput.type === "mindmap" ? "mindmap"
+      : renamingOutput.type === "datatable" ? "datatable"
+      : renamingOutput.type === "report" ? "report"
+      : "quiz"
     const res = await fetch(`/api/studio/${apiBase}/${renamingOutput.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -1054,6 +1125,9 @@ export function StudioSidebar({
     setStudioOutputsList((prev) => prev.map((o) => (o.id === output.id ? output : o)))
     if (activeQuiz?.id === output.id) setActiveQuiz(output)
     if (activeFlashcards?.id === output.id) setActiveFlashcards(output)
+    if (activeReport?.id === output.id) setActiveReport(output)
+    if (activeMindmap?.id === output.id) setActiveMindmap(output)
+    if (activeDatatable?.id === output.id) setActiveDatatable(output)
     setRenamingOutput(null)
   }
 
@@ -1062,12 +1136,16 @@ export function StudioSidebar({
     setStudioOutputsList((prev) => prev.filter((o) => o.id !== outputId))
     if (activeQuiz?.id === outputId) closeQuiz()
     if (activeFlashcards?.id === outputId) closeFlashcards()
+    if (activeReport?.id === outputId) closeReport()
+    if (activeMindmap?.id === outputId) closeMindmap()
+    if (activeDatatable?.id === outputId) closeDatatable()
     const apiBase =
-      output?.type === "slidedeck"
-        ? "slidedeck"
-        : output?.type === "flashcards"
-          ? "flashcards"
-          : "quiz"
+      output?.type === "slidedeck" ? "slidedeck"
+      : output?.type === "flashcards" ? "flashcards"
+      : output?.type === "mindmap" ? "mindmap"
+      : output?.type === "datatable" ? "datatable"
+      : output?.type === "report" ? "report"
+      : "quiz"
     await fetch(`/api/studio/${apiBase}/${outputId}`, { method: "DELETE" })
   }
 
@@ -1083,8 +1161,8 @@ export function StudioSidebar({
     <>
       <aside
         className={cn(
-          "bg-background flex shrink-0 flex-col border-l transition-all duration-200",
-          collapsed ? "w-12" : noteMode ? "flex-1" : "w-96"
+          "bg-background flex flex-col border-l transition-all duration-200",
+          collapsed ? "w-12 shrink-0" : noteMode ? "flex-1 min-w-0" : "w-96 shrink-0"
         )}
       >
         {/* Header */}
@@ -1540,6 +1618,45 @@ export function StudioSidebar({
                 </div>
               )
             })()
+          ) : activeAudio ? (
+            /* ── Audio detail view ── */
+            <div className="flex flex-1 flex-col overflow-hidden">
+              <div className="flex h-10 shrink-0 items-center justify-between border-b px-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-7 shrink-0"
+                  aria-label={tCommon("back")}
+                  onClick={closeAudio}
+                >
+                  <ChevronLeft className="size-4" />
+                </Button>
+                <span className="truncate px-1 text-xs font-medium">
+                  {activeAudio.title ?? tStudio("audio")}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 shrink-0 text-xs"
+                  disabled={activeAudio.status === "generating"}
+                  onClick={() => generateAudio(activeAudio.id)}
+                >
+                  {tStudio("audioRegenerate")}
+                </Button>
+              </div>
+              {activeAudio.status === "generating" || !activeAudio.data ? (
+                <div className="text-muted-foreground flex flex-1 items-center justify-center text-sm">
+                  {tStudio("audioGenerating")}
+                </div>
+              ) : (
+                <div className="flex-1 overflow-y-auto">
+                  <AudioPlayer
+                    outputId={activeAudio.id}
+                    data={activeAudio.data as AudioData}
+                  />
+                </div>
+              )}
+            </div>
           ) : activeMindmap ? (
             /* ── Mindmap detail view ── */
             <div className="flex flex-1 flex-col overflow-hidden">
@@ -1681,7 +1798,7 @@ export function StudioSidebar({
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       className="whitespace-nowrap"
-                      onClick={() => setDatatableModal({ view: "sources", output: activeDatatable })}
+                      onClick={() => setDatatableModal({ view: "customize", output: activeDatatable })}
                     >
                       <History className="size-4" />
                       {tStudio("viewPrompt")}
@@ -1800,9 +1917,10 @@ export function StudioSidebar({
                           else if (tool.id === "slidedeck") generateSlidedeck()
                           else if (tool.id === "flashcards") generateFlashcards()
                           else if (tool.id === "mindmap") generateMindmap()
+                          else if (tool.id === "audio") generateAudio()
                           else if (tool.id === "datatable") setDatatableModal({ view: "customize", output: null })
                           else if (tool.id === "report") setReportModalOpen(true)
-                          else devTodo(tool.id)
+                          else devTodo("unknown-tool")
                         }}
                       >
                         <div className="flex items-center gap-2">
@@ -1912,6 +2030,33 @@ export function StudioSidebar({
                                     >
                                       <Trash2 className="size-4" />
                                       {t("deleteNote")}
+                                    </DropdownMenuItem>
+                                  </>
+                                ) : item.kind === "audio" ? (
+                                  <>
+                                    <DropdownMenuItem
+                                      className="whitespace-nowrap"
+                                      onClick={() => {
+                                        setRenamingOutput(studioOutputsList.find((o) => o.id === item.id) ?? null)
+                                        setRenameValue(item.title)
+                                      }}
+                                    >
+                                      <Pencil className="size-4" />
+                                      {tStudio("rename")}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      className="whitespace-nowrap"
+                                      onClick={() => generateAudio(item.id)}
+                                    >
+                                      <RefreshCw className="size-4" />
+                                      {tStudio("audioRegenerate")}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      className="text-destructive focus:text-destructive whitespace-nowrap"
+                                      onClick={() => handleDeleteStudioOutput(item.id)}
+                                    >
+                                      <Trash2 className="size-4" />
+                                      {tStudio("delete")}
                                     </DropdownMenuItem>
                                   </>
                                 ) : item.kind === "slidedeck" ? (
@@ -2154,6 +2299,40 @@ export function StudioSidebar({
                                       {tStudio("delete")}
                                     </DropdownMenuItem>
                                   </>
+                                ) : item.kind === "report" ? (
+                                  <>
+                                    <DropdownMenuItem
+                                      className="whitespace-nowrap"
+                                      onClick={async () => {
+                                        const res = await fetch(`/api/studio/report/${item.id}/share`, { method: "POST" })
+                                        if (!res.ok) { toast.error(tStudio("shareError")); return }
+                                        const { token } = (await res.json()) as { token: string }
+                                        const url = `${window.location.origin}/share/${token}`
+                                        if (navigator.share) await navigator.share({ title: item.title, url }).catch(() => undefined)
+                                        else { await navigator.clipboard.writeText(url); toast.success(tStudio("shareCopied")) }
+                                      }}
+                                    >
+                                      <Share2 className="size-4" />
+                                      {tStudio("share")}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      className="whitespace-nowrap"
+                                      onClick={() => {
+                                        setRenamingOutput(studioOutputsList.find((o) => o.id === item.id) ?? null)
+                                        setRenameValue(item.title)
+                                      }}
+                                    >
+                                      <Pencil className="size-4" />
+                                      {tStudio("rename")}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      className="text-destructive focus:text-destructive whitespace-nowrap"
+                                      onClick={() => handleDeleteStudioOutput(item.id)}
+                                    >
+                                      <Trash2 className="size-4" />
+                                      {tStudio("delete")}
+                                    </DropdownMenuItem>
+                                  </>
                                 ) : (
                                   <>
                                     <DropdownMenuItem
@@ -2322,6 +2501,15 @@ export function StudioSidebar({
         initialView={datatableModal?.view ?? "customize"}
         defaultLanguage={(datatableModal?.output?.data as DatatableData | null)?.language ?? "de"}
         onGenerate={(options) => generateDatatable(options, datatableModal?.output?.id)}
+      />
+      <ReportFormatModal
+        open={reportModalOpen}
+        notebookId={notebookId}
+        defaultLanguage="de"
+        onClose={() => setReportModalOpen(false)}
+        onGenerate={(format, language, customPrompt) =>
+          generateReport(format, language, customPrompt, activeReport?.id)
+        }
       />
     </>
   )
