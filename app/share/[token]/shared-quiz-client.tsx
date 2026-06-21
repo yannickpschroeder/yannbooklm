@@ -9,6 +9,7 @@ export function SharedQuizClient({ data, outputId }: { data: QuizData; outputId:
       data={data}
       outputId={outputId}
       onNewQuizFromTopic={() => undefined}
+      readOnly
     />
   )
 }

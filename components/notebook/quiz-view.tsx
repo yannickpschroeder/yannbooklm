@@ -49,12 +49,14 @@ export function QuizView({
   data,
   outputId,
   onNewQuizFromTopic,
+  readOnly = false,
 }: {
   data: QuizData
   notebookId?: string
   outputId: string
   onRegenerate?: () => void
   onNewQuizFromTopic: (topic: string, outputId: string) => void
+  readOnly?: boolean
 }) {
   const [mode, setMode] = useState<Mode>("quiz")
   const [index, setIndex] = useState(0)
@@ -181,14 +183,16 @@ export function QuizView({
                   {s}
                 </button>
               ))}
-              <Button
-                size="sm"
-                className="mt-1"
-                disabled={!selectedSuggestion}
-                onClick={() => selectedSuggestion && onNewQuizFromTopic(selectedSuggestion, outputId)}
-              >
-                Quiz erstellen
-              </Button>
+              {!readOnly && (
+                <Button
+                  size="sm"
+                  className="mt-1"
+                  disabled={!selectedSuggestion}
+                  onClick={() => selectedSuggestion && onNewQuizFromTopic(selectedSuggestion, outputId)}
+                >
+                  Quiz erstellen
+                </Button>
+              )}
             </div>
           </div>
         </div>
