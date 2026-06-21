@@ -60,6 +60,7 @@ export async function POST(req: Request) {
   const topChunks = await db
     .select({
       id: childChunks.id,
+      sourceId: sources.id,
       positionStart: childChunks.positionStart,
       pageNumber: childChunks.pageNumber,
       parentContent: parentChunks.content,
@@ -85,6 +86,7 @@ export async function POST(req: Request) {
   const citationChunks: CitationChunk[] = topChunks.map((c, i) => ({
     index: i + 1,
     id: c.id,
+    sourceId: c.sourceId,
     sourceTitle: c.sourceTitle,
     sourceType: c.sourceType,
     sourceSummary: c.sourceSummary,

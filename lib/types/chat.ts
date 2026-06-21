@@ -3,6 +3,7 @@ import type { UIMessage } from "ai"
 export type CitationChunk = {
   index: number
   id: string
+  sourceId?: string
   sourceTitle: string
   sourceType: string
   sourceSummary?: string | null

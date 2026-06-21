@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
 import { useTranslations } from "next-intl"
 import {
   ChevronLeft,
@@ -50,18 +50,51 @@ function buildSourceLink(chunk: CitationChunk) {
   return null
 }
 
+const mdComponents: React.ComponentProps<typeof Markdown>["components"] = {
+  p(props) { const { node: _n, children, ...rest } = props; return <p className="mb-3 last:mb-0" {...rest}>{children}</p> },
+  img(props) { const { node: _n, src, alt, ...rest } = props; return <img src={typeof src === "string" ? src : undefined} alt={alt ?? ""} className="my-3 w-full rounded-md object-cover" {...rest} /> },
+  ul(props) { const { node: _n, children, ...rest } = props; return <ul className="mb-3 list-disc space-y-1 pl-4 last:mb-0" {...rest}>{children}</ul> },
+  ol(props) { const { node: _n, children, ...rest } = props; return <ol className="mb-3 list-decimal space-y-1 pl-4 last:mb-0" {...rest}>{children}</ol> },
+  li(props) { const { node: _n, children, ...rest } = props; return <li {...rest}>{children}</li> },
+  strong(props) { const { node: _n, children, ...rest } = props; return <strong className="font-semibold" {...rest}>{children}</strong> },
+}
+
+function MdContent({ children }: { children: string }) {
+  return (
+    <Markdown remarkPlugins={[remarkGfm]} components={mdComponents}>
+      {resolveS3ImagesInContent(children)}
+    </Markdown>
+  )
+}
+
 export function SourceDetailPanel({
   chunk,
   onClose,
   onTopicClick,
+  highlightText,
 }: {
   chunk: CitationChunk
   onClose: () => void
   onTopicClick?: (topic: string) => void
+  highlightText?: string | null
 }) {
   const t = useTranslations("sourceDetail")
   const link = buildSourceLink(chunk)
   const [summaryOpen, setSummaryOpen] = useState(false)
+  const highlightRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (highlightRef.current && highlightText) {
+      highlightRef.current.scrollIntoView({ behavior: "smooth", block: "center" })
+    }
+  }, [highlightText, chunk.id])
+
+  const contentParts: [string, string, string] | null = (() => {
+    if (!highlightText) return null
+    const idx = chunk.content.indexOf(highlightText)
+    if (idx === -1) return null
+    return [chunk.content.slice(0, idx), highlightText, chunk.content.slice(idx + highlightText.length)]
+  })()
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -125,60 +158,20 @@ export function SourceDetailPanel({
       )}
 
       <div className="text-foreground flex-1 overflow-y-auto px-4 py-4 text-sm leading-relaxed">
-        <Markdown
-          remarkPlugins={[remarkGfm]}
-          components={{
-            p(props) {
-              const { node: _node, children, ...rest } = props
-              return (
-                <p className="mb-3 last:mb-0" {...rest}>
-                  {children}
-                </p>
-              )
-            },
-            img(props) {
-              const { node: _node, src, alt, ...rest } = props
-              return (
-                <img
-                  src={typeof src === "string" ? src : undefined}
-                  alt={alt ?? ""}
-                  className="my-3 w-full rounded-md object-cover"
-                  {...rest}
-                />
-              )
-            },
-            ul(props) {
-              const { node: _node, children, ...rest } = props
-              return (
-                <ul className="mb-3 list-disc space-y-1 pl-4 last:mb-0" {...rest}>
-                  {children}
-                </ul>
-              )
-            },
-            ol(props) {
-              const { node: _node, children, ...rest } = props
-              return (
-                <ol className="mb-3 list-decimal space-y-1 pl-4 last:mb-0" {...rest}>
-                  {children}
-                </ol>
-              )
-            },
-            li(props) {
-              const { node: _node, children, ...rest } = props
-              return <li {...rest}>{children}</li>
-            },
-            strong(props) {
-              const { node: _node, children, ...rest } = props
-              return (
-                <strong className="font-semibold" {...rest}>
-                  {children}
-                </strong>
-              )
-            },
-          }}
-        >
-          {resolveS3ImagesInContent(chunk.content)}
-        </Markdown>
+        {contentParts ? (
+          <>
+            {contentParts[0] && <MdContent>{contentParts[0]}</MdContent>}
+            <div
+              ref={highlightRef}
+              className="my-2 rounded-md border border-yellow-500/40 bg-yellow-500/10 px-3 py-2"
+            >
+              <MdContent>{contentParts[1]}</MdContent>
+            </div>
+            {contentParts[2] && <MdContent>{contentParts[2]}</MdContent>}
+          </>
+        ) : (
+          <MdContent>{chunk.content}</MdContent>
+        )}
       </div>
 
       <Separator />

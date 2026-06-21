@@ -70,6 +70,7 @@ export function SourceSidebar({
   const t = useTranslations("sources")
   const tCommon = useTranslations("common")
   const [activeChunk, setActiveChunk] = useState<CitationChunk | null>(null)
+  const [highlightText, setHighlightText] = useState<string | null>(null)
   const [loadingSourceId, setLoadingSourceId] = useState<string | null>(null)
   const [enabledMap, setEnabledMap] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(initialSources.map((s) => [s.id, s.enabled]))
@@ -84,11 +85,24 @@ export function SourceSidebar({
   // Listen for source-view events from ChatPanel
   useEffect(() => {
     return onSourceView((chunk) => {
-      if (chunk) {
-        setCollapsed(false)
-        setActiveChunk(chunk)
+      if (!chunk) { setActiveChunk(null); setHighlightText(null); return }
+      setCollapsed(false)
+      if (chunk.sourceId) {
+        void (async () => {
+          try {
+            const res = await fetch(`/api/sources/${chunk.sourceId}/preview`)
+            if (!res.ok) throw new Error()
+            const full = (await res.json()) as CitationChunk
+            setActiveChunk(full)
+            setHighlightText(chunk.content)
+          } catch {
+            setActiveChunk(chunk)
+            setHighlightText(null)
+          }
+        })()
       } else {
-        setActiveChunk(null)
+        setActiveChunk(chunk)
+        setHighlightText(null)
       }
     })
   }, [])
@@ -232,6 +246,7 @@ export function SourceSidebar({
       if (!res.ok) throw new Error()
       const chunk = (await res.json()) as CitationChunk
       setCollapsed(false)
+      setHighlightText(null)
       setActiveChunk(chunk)
       openSourceView(chunk)
     } catch {
@@ -296,7 +311,8 @@ export function SourceSidebar({
           /* Source detail view */
           <SourceDetailPanel
             chunk={activeChunk}
-            onClose={() => setActiveChunk(null)}
+            highlightText={highlightText}
+            onClose={() => { setActiveChunk(null); setHighlightText(null) }}
             onTopicClick={(topic) =>
               window.dispatchEvent(new CustomEvent("notebook:set-input", { detail: { text: topic } }))
             }
