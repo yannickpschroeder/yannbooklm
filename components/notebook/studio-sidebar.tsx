@@ -396,7 +396,7 @@ export function StudioSidebar({
           <div className="relative flex flex-1 flex-col overflow-hidden">
             <div className="flex flex-1 flex-col overflow-y-auto pb-16">
               {/* Studio tools grid */}
-              <div className="grid grid-cols-2 gap-3 p-3">
+              <div className="grid grid-cols-2 gap-2 p-3">
                 {STUDIO_TOOLS.map((tool) => {
                   const Icon = tool.icon
                   return (
@@ -431,9 +431,9 @@ export function StudioSidebar({
                 {outputs.length === 0 ? (
                   <p className="py-4 text-center text-xs text-muted-foreground">{t("noOutputs")}</p>
                 ) : (
-                  <ul className="space-y-1">
+                  <ul className="space-y-0.5">
                     {outputs.map((item) => (
-                      <li key={item.id} className="group flex items-center gap-2 rounded-md px-2 py-2.5 hover:bg-muted">
+                      <li key={item.id} className="group flex items-center gap-2 rounded-md px-2 py-2 hover:bg-muted">
                         {outputIcon(item.kind)}
                         <button className="min-w-0 flex-1 text-left" onClick={() => handleOutputClick(item)}>
                           <p className="truncate text-sm">
