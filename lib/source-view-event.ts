@@ -15,3 +15,15 @@ export function onSourceView(cb: (chunk: CitationChunk | null) => void): () => v
   window.addEventListener(EVENT, handler)
   return () => window.removeEventListener(EVENT, handler)
 }
+
+const OPEN_SOURCE_EVENT = "yannbooklm:open-source"
+
+export function openSourceById(sourceId: string) {
+  window.dispatchEvent(new CustomEvent(OPEN_SOURCE_EVENT, { detail: sourceId }))
+}
+
+export function onOpenSourceById(cb: (sourceId: string) => void): () => void {
+  const handler = (e: Event) => cb((e as CustomEvent<string>).detail)
+  window.addEventListener(OPEN_SOURCE_EVENT, handler)
+  return () => window.removeEventListener(OPEN_SOURCE_EVENT, handler)
+}

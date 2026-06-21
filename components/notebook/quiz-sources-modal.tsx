@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { RefreshCw, FileText, Globe, AlignLeft } from "lucide-react"
 import { FaYoutube } from "react-icons/fa"
 import { cn } from "@/lib/utils"
+import { openSourceById } from "@/lib/source-view-event"
 import type { QuizUsedSource } from "./quiz-view"
 
 type View = "sources" | "customize"
@@ -63,27 +64,28 @@ export function QuizSourcesModal({ open, onOpenChange, usedSources, onGenerate }
               <div className="flex items-center gap-2">
                 <FileText className="size-4" />
                 <DialogTitle>Quellen</DialogTitle>
-                <button
-                  onClick={() => setView("customize")}
-                  className="ml-auto rounded-md p-1 hover:bg-muted"
-                  aria-label="Quiz anpassen"
-                >
-                  <RefreshCw className="size-4" />
-                </button>
               </div>
+              <button
+                onClick={() => setView("customize")}
+                className="absolute right-12 top-4 rounded-sm p-1 opacity-70 hover:opacity-100 hover:bg-muted"
+                aria-label="Quiz anpassen"
+              >
+                <RefreshCw className="size-4" />
+              </button>
             </DialogHeader>
             <div className="flex flex-wrap gap-2 py-2">
               {usedSources.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Keine Quellen gespeichert.</p>
               ) : (
                 usedSources.map((s) => (
-                  <span
+                  <button
                     key={s.id}
-                    className="flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-3 py-1 text-xs"
+                    onClick={() => { onOpenChange(false); openSourceById(s.id) }}
+                    className="flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-3 py-1 text-xs hover:bg-muted transition-colors"
                   >
                     {SOURCE_ICONS[s.type] ?? <FileText className="size-3.5" />}
                     {s.title}
-                  </span>
+                  </button>
                 ))
               )}
             </div>

@@ -36,7 +36,7 @@ import { FaYoutube } from "react-icons/fa"
 import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { deleteSource, renameSource, toggleSourceEnabled } from "@/lib/actions/sources"
-import { onSourceView, openSourceView } from "@/lib/source-view-event"
+import { onSourceView, openSourceView, onOpenSourceById } from "@/lib/source-view-event"
 import { resolveS3ImagesInContent } from "@/lib/s3-image-url"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
@@ -284,6 +284,16 @@ export function SourceSidebar({
       } else {
         setActiveChunk(null)
       }
+    })
+  }, [])
+
+  useEffect(() => {
+    return onOpenSourceById((sourceId) => {
+      setCollapsed(false)
+      setActiveChunk(null)
+      setTimeout(() => {
+        document.getElementById(`source-${sourceId}`)?.scrollIntoView({ behavior: "smooth", block: "center" })
+      }, 100)
     })
   }, [])
 
@@ -559,6 +569,7 @@ export function SourceSidebar({
                   filtered.map((source) => (
                     <li
                       key={source.id}
+                      id={`source-${source.id}`}
                       className={cn(
                         "group hover:bg-muted flex items-center gap-2 rounded-md px-2 py-2",
                         !(enabledMap[source.id] ?? true) && "opacity-50"

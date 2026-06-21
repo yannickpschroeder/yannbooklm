@@ -17,6 +17,7 @@ import {
   Share2,
   Pencil,
   History,
+  Loader2,
 } from "lucide-react"
 import {
   FaMicrophone,
@@ -70,6 +71,7 @@ type OutputItem = {
   title: string
   createdAt: Date
   note?: Note
+  loading?: boolean
 }
 
 function outputIcon(kind: OutputKind) {
@@ -122,6 +124,7 @@ export function StudioSidebar({
   const [activeNote, setActiveNote] = useState<Note | null>(null)
   const [activeQuiz, setActiveQuiz] = useState<StudioOutput | null>(null)
   const [quizLoading, setQuizLoading] = useState(false)
+  const [newQuizLoading, setNewQuizLoading] = useState(false)
   const [renamingOutput, setRenamingOutput] = useState<StudioOutput | null>(null)
   const [renameValue, setRenameValue] = useState("")
   const [sourcesModalOutput, setSourcesModalOutput] = useState<StudioOutput | null>(null)
@@ -130,10 +133,15 @@ export function StudioSidebar({
   const [isSettingSource, setIsSettingSource] = useState(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  const loadingPlaceholder: OutputItem[] = newQuizLoading
+    ? [{ id: "__loading__", kind: "quiz", title: tStudio("quiz"), createdAt: new Date(), loading: true }]
+    : []
+
   const outputs: OutputItem[] = [
+    ...loadingPlaceholder,
     ...notesList.map(noteToOutputItem),
     ...studioOutputsList.map((o) => studioOutputToItem(o, tStudio)),
-  ].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+  ].sort((a, b) => (a.loading ? -1 : b.loading ? 1 : b.createdAt.getTime() - a.createdAt.getTime()))
 
   useEffect(() => {
     async function onSaveAsNote(e: Event) {
@@ -191,6 +199,7 @@ export function StudioSidebar({
 
   async function generateQuiz(focusTopic?: string, outputId?: string, count?: number, difficulty?: string) {
     setQuizLoading(true)
+    if (!outputId) setNewQuizLoading(true)
     try {
       const res = await fetch("/api/studio/quiz", {
         method: "POST",
@@ -215,6 +224,7 @@ export function StudioSidebar({
       toast.error(tStudio("quizError"))
     } finally {
       setQuizLoading(false)
+      setNewQuizLoading(false)
     }
   }
 
@@ -550,13 +560,16 @@ export function StudioSidebar({
                   <ul className="space-y-0.5">
                     {outputs.map((item) => (
                       <li key={item.id} className="group flex items-center gap-2 rounded-md px-2 py-2 hover:bg-muted">
-                        {outputIcon(item.kind)}
-                        <button className="min-w-0 flex-1 text-left" onClick={() => handleOutputClick(item)}>
+                        {item.loading
+                          ? <Loader2 className="size-4 shrink-0 animate-spin text-muted-foreground" />
+                          : outputIcon(item.kind)}
+                        <button className="min-w-0 flex-1 text-left" onClick={() => !item.loading && handleOutputClick(item)} disabled={item.loading}>
                           <p className="truncate text-sm">
                             {item.title || <span className="italic text-muted-foreground">{t("placeholder")}</span>}
                           </p>
                           <p className="text-xs text-muted-foreground">{relativeTime(item.createdAt)}</p>
                         </button>
+                        {!item.loading && (
                         <DropdownMenu>
                           <DropdownMenuTrigger className="shrink-0 rounded p-0.5 opacity-0 transition-opacity hover:bg-muted-foreground/20 group-hover:opacity-100 focus:opacity-100">
                             <MoreHorizontal className="size-4 text-muted-foreground" />
@@ -609,6 +622,7 @@ export function StudioSidebar({
                             )}
                           </DropdownMenuContent>
                         </DropdownMenu>
+                        )}
                       </li>
                     ))}
                   </ul>
