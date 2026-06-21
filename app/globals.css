@@ -128,3 +128,19 @@
     @apply font-sans;
   }
 }
+
+/* ReactFlow dark mode overrides */
+.dark .react-flow__controls-button {
+  background: oklch(0.269 0 0);
+  border-color: oklch(1 0 0 / 12%);
+  fill: oklch(0.985 0 0);
+}
+.dark .react-flow__controls-button:hover {
+  background: oklch(0.32 0 0);
+}
+.dark .react-flow__minimap {
+  background: oklch(0.22 0 0);
+}
+.dark .react-flow__minimap-mask {
+  fill: oklch(0 0 0 / 30%);
+}
