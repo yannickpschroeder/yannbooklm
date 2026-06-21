@@ -125,6 +125,7 @@ export function StudioSidebar({
   const [activeQuiz, setActiveQuiz] = useState<StudioOutput | null>(null)
   const [quizLoading, setQuizLoading] = useState(false)
   const [newQuizLoading, setNewQuizLoading] = useState(false)
+  const [regeneratingOutputId, setRegeneratingOutputId] = useState<string | null>(null)
   const [renamingOutput, setRenamingOutput] = useState<StudioOutput | null>(null)
   const [renameValue, setRenameValue] = useState("")
   const [sourcesModalOutput, setSourcesModalOutput] = useState<StudioOutput | null>(null)
@@ -200,6 +201,7 @@ export function StudioSidebar({
   async function generateQuiz(focusTopic?: string, outputId?: string, count?: number, difficulty?: string) {
     setQuizLoading(true)
     if (!outputId) setNewQuizLoading(true)
+    else setRegeneratingOutputId(outputId)
     try {
       const res = await fetch("/api/studio/quiz", {
         method: "POST",
@@ -225,6 +227,7 @@ export function StudioSidebar({
     } finally {
       setQuizLoading(false)
       setNewQuizLoading(false)
+      setRegeneratingOutputId(null)
     }
   }
 
@@ -560,7 +563,7 @@ export function StudioSidebar({
                   <ul className="space-y-0.5">
                     {outputs.map((item) => (
                       <li key={item.id} className="group flex items-center gap-2 rounded-md px-2 py-2 hover:bg-muted">
-                        {item.loading
+                        {item.loading || item.id === regeneratingOutputId
                           ? <Loader2 className="size-4 shrink-0 animate-spin text-muted-foreground" />
                           : outputIcon(item.kind)}
                         <button className="min-w-0 flex-1 text-left" onClick={() => !item.loading && handleOutputClick(item)} disabled={item.loading}>
