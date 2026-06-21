@@ -54,11 +54,11 @@ import { toast } from "sonner"
 import type { Note, StudioOutput } from "@/db/schema"
 
 const STUDIO_TOOLS = [
-  { id: "audio", labelKey: "audio", icon: FaMicrophone, badge: null },
-  { id: "slidedeck", labelKey: "slidedeck", icon: FaSlideshare, badge: "BETA" },
-  { id: "mindmap", labelKey: "mindmap", icon: FaProjectDiagram, badge: null },
-  { id: "datatable", labelKey: "datatable", icon: FaTable, badge: null },
-  { id: "quiz", labelKey: "quiz", icon: FaQuestionCircle, badge: null },
+  { id: "audio",     labelKey: "audio",     icon: FaMicrophone,    badge: null,   color: "text-violet-400" },
+  { id: "slidedeck", labelKey: "slidedeck", icon: FaSlideshare,    badge: "BETA", color: "text-orange-400" },
+  { id: "mindmap",   labelKey: "mindmap",   icon: FaProjectDiagram,badge: null,   color: "text-emerald-400" },
+  { id: "datatable", labelKey: "datatable", icon: FaTable,         badge: null,   color: "text-sky-400" },
+  { id: "quiz",      labelKey: "quiz",      icon: FaQuestionCircle,badge: null,   color: "text-amber-400" },
 ] as const
 
 export const NOTE_FROM_CHAT_EVENT = "notebook:save-as-note"
@@ -76,12 +76,12 @@ type OutputItem = {
 
 function outputIcon(kind: OutputKind) {
   switch (kind) {
-    case "audio":     return <FaMicrophone className="size-4 shrink-0 text-muted-foreground" />
-    case "mindmap":   return <FaProjectDiagram className="size-4 shrink-0 text-muted-foreground" />
-    case "slidedeck": return <FaSlideshare className="size-4 shrink-0 text-muted-foreground" />
-    case "datatable": return <FaTable className="size-4 shrink-0 text-muted-foreground" />
-    case "quiz":      return <FaQuestionCircle className="size-4 shrink-0 text-muted-foreground" />
-    default:          return <StickyNote className="size-4 shrink-0 text-blue-400" />
+    case "audio":     return <FaMicrophone     className="size-4 shrink-0 text-violet-400" />
+    case "mindmap":   return <FaProjectDiagram className="size-4 shrink-0 text-emerald-400" />
+    case "slidedeck": return <FaSlideshare     className="size-4 shrink-0 text-orange-400" />
+    case "datatable": return <FaTable          className="size-4 shrink-0 text-sky-400" />
+    case "quiz":      return <FaQuestionCircle className="size-4 shrink-0 text-amber-400" />
+    default:          return <StickyNote       className="size-4 shrink-0 text-blue-400" />
   }
 }
 
@@ -436,9 +436,9 @@ export function StudioSidebar({
                 key={tool.id}
                 title={tStudio(tool.labelKey)}
                 onClick={() => setCollapsed(false)}
-                className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                className="flex size-8 items-center justify-center rounded-md transition-colors hover:bg-muted"
               >
-                <Icon className="size-4" />
+                <Icon className={cn("size-4", tool.color)} />
               </button>
             )
           })}
@@ -569,7 +569,7 @@ export function StudioSidebar({
                       onClick={() => tool.id === "quiz" ? generateQuiz() : devTodo(tool.id)}
                     >
                       <div className="flex items-center gap-2">
-                        <Icon className="size-4 text-muted-foreground" />
+                        <Icon className={cn("size-4", tool.color)} />
                         <span className="text-xs font-medium leading-tight">{tStudio(tool.labelKey)}</span>
                       </div>
                       <div className="flex shrink-0 flex-col items-end gap-1">
