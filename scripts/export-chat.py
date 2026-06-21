@@ -111,14 +111,19 @@ for entry in entries:
         "timestamp": entry.get("timestamp", ""),
     })
 
-# Find slice start: everything after last_uuid
-if last_uuid:
+# Find slice start: everything after last_uuid.
+# If last_uuid was from a different session file (e.g. after context compaction), reset to 0.
+last_session_id = state.get("session_id")
+if last_uuid and last_session_id and last_session_id == os.path.basename(session_file):
     start_idx = next(
         (i + 1 for i, m in enumerate(all_messages) if m["uuid"] == last_uuid),
-        len(all_messages),  # if uuid not found, export nothing
+        len(all_messages),  # uuid gone? export nothing
     )
+elif last_uuid:
+    # Different session file — include everything from this new session
+    start_idx = 0
 else:
-    start_idx = 0  # first export: include everything
+    start_idx = 0  # first export ever
 
 new_messages = all_messages[start_idx:]
 
