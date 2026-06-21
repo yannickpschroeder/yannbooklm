@@ -188,6 +188,7 @@ export const studioOutputs = pgTable("studio_outputs", {
     .notNull()
     .references(() => notebooks.id, { onDelete: "cascade" }),
   type: studioOutputTypeEnum("type").notNull(),
+  title: text("title"),
   data: jsonb("data"),
   s3Key: text("s3_key"),
   createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),

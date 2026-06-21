@@ -69,6 +69,7 @@
     "quizError": "Failed to generate quiz",
     "share": "Share",
     "rename": "Rename",
+    "renameError": "Failed to rename",
     "viewPrompt": "View prompt and sources",
     "delete": "Delete"
   },

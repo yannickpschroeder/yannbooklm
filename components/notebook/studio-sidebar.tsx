@@ -33,6 +33,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import { devTodo } from "@/lib/dev-todo"
 import { createNote, updateNote, deleteNote } from "@/lib/actions/notes"
@@ -87,7 +95,7 @@ function noteToOutputItem(note: Note): OutputItem {
 }
 
 function studioOutputToItem(o: StudioOutput, tStudio: (k: string) => string): OutputItem {
-  return { id: o.id, kind: o.type, title: tStudio(o.type), createdAt: o.createdAt }
+  return { id: o.id, kind: o.type, title: o.title ?? tStudio(o.type), createdAt: o.createdAt }
 }
 
 export function StudioSidebar({
@@ -105,6 +113,7 @@ export function StudioSidebar({
 }) {
   const t = useTranslations("notes")
   const tStudio = useTranslations("studio")
+  const tCommon = useTranslations("common")
   const locale = useLocale()
   const [collapsed, setCollapsed] = useState(false)
   const [notesList, setNotesList] = useState<Note[]>(initialNotes)
@@ -112,6 +121,8 @@ export function StudioSidebar({
   const [activeNote, setActiveNote] = useState<Note | null>(null)
   const [activeQuiz, setActiveQuiz] = useState<StudioOutput | null>(null)
   const [quizLoading, setQuizLoading] = useState(false)
+  const [renamingOutput, setRenamingOutput] = useState<StudioOutput | null>(null)
+  const [renameValue, setRenameValue] = useState("")
   const [editTitle, setEditTitle] = useState("")
   const [editContent, setEditContent] = useState("")
   const [isSettingSource, setIsSettingSource] = useState(false)
@@ -339,6 +350,21 @@ export function StudioSidebar({
     }
   }
 
+  async function handleRenameStudioOutput() {
+    if (!renamingOutput || !renameValue.trim()) return
+    const res = await fetch(`/api/studio/quiz/${renamingOutput.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: renameValue.trim() }),
+    })
+    if (!res.ok) { toast.error(tStudio("renameError")); return }
+    const updated = (await res.json()) as StudioOutput & { createdAt: string }
+    const output = { ...updated, createdAt: new Date(updated.createdAt) }
+    setStudioOutputsList((prev) => prev.map((o) => (o.id === output.id ? output : o)))
+    if (activeQuiz?.id === output.id) setActiveQuiz(output)
+    setRenamingOutput(null)
+  }
+
   async function handleDeleteStudioOutput(outputId: string) {
     setStudioOutputsList((prev) => prev.filter((o) => o.id !== outputId))
     if (activeQuiz?.id === outputId) closeQuiz()
@@ -354,6 +380,7 @@ export function StudioSidebar({
   }
 
   return (
+    <>
     <aside
       className={cn(
         "flex shrink-0 flex-col border-l bg-background transition-all duration-200",
@@ -556,7 +583,7 @@ export function StudioSidebar({
                                 <DropdownMenuItem className="whitespace-nowrap" onClick={() => devTodo("share")}>
                                   <Share2 className="size-4" />{tStudio("share")}
                                 </DropdownMenuItem>
-                                <DropdownMenuItem className="whitespace-nowrap" onClick={() => devTodo("rename")}>
+                                <DropdownMenuItem className="whitespace-nowrap" onClick={() => { setRenamingOutput(studioOutputsList.find((o) => o.id === item.id) ?? null); setRenameValue(item.title) }}>
                                   <Pencil className="size-4" />{tStudio("rename")}
                                 </DropdownMenuItem>
                                 <DropdownMenuItem className="whitespace-nowrap" onClick={() => devTodo("viewPrompt")}>
@@ -590,6 +617,25 @@ export function StudioSidebar({
         )
       )}
     </aside>
+
+    <Dialog open={!!renamingOutput} onOpenChange={(open) => !open && setRenamingOutput(null)}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>{tStudio("rename")}</DialogTitle>
+        </DialogHeader>
+        <Input
+          value={renameValue}
+          onChange={(e) => setRenameValue(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && handleRenameStudioOutput()}
+          autoFocus
+        />
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setRenamingOutput(null)}>{tCommon("cancel")}</Button>
+          <Button onClick={handleRenameStudioOutput} disabled={!renameValue.trim()}>{tCommon("save")}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   )
 }
 

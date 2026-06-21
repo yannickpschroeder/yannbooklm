@@ -69,6 +69,7 @@
     "quizError": "Fehler beim Generieren des Quiz",
     "share": "Teilen",
     "rename": "Umbenennen",
+    "renameError": "Fehler beim Umbenennen",
     "viewPrompt": "Prompt und Quellen ansehen",
     "delete": "Löschen"
   },
