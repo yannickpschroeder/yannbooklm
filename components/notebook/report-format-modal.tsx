@@ -92,7 +92,7 @@ export function ReportFormatModal({
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-2xl">
         {view === "formats" ? (
           <>
             <DialogHeader>
