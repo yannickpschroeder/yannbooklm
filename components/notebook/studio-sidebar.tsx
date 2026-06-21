@@ -54,11 +54,11 @@ import { toast } from "sonner"
 import type { Note, StudioOutput } from "@/db/schema"
 
 const STUDIO_TOOLS = [
-  { id: "audio",     labelKey: "audio",     icon: FaMicrophone,    badge: null,   color: "text-violet-400" },
-  { id: "slidedeck", labelKey: "slidedeck", icon: FaSlideshare,    badge: "BETA", color: "text-orange-400" },
-  { id: "mindmap",   labelKey: "mindmap",   icon: FaProjectDiagram,badge: null,   color: "text-emerald-400" },
-  { id: "datatable", labelKey: "datatable", icon: FaTable,         badge: null,   color: "text-sky-400" },
-  { id: "quiz",      labelKey: "quiz",      icon: FaQuestionCircle,badge: null,   color: "text-amber-400" },
+  { id: "audio",     labelKey: "audio",     icon: FaMicrophone,    badge: null,   color: "text-violet-400",  bg: "bg-violet-500/10" },
+  { id: "slidedeck", labelKey: "slidedeck", icon: FaSlideshare,    badge: "BETA", color: "text-orange-400",  bg: "bg-orange-500/10" },
+  { id: "mindmap",   labelKey: "mindmap",   icon: FaProjectDiagram,badge: null,   color: "text-emerald-400", bg: "bg-emerald-500/10" },
+  { id: "datatable", labelKey: "datatable", icon: FaTable,         badge: null,   color: "text-sky-400",     bg: "bg-sky-500/10" },
+  { id: "quiz",      labelKey: "quiz",      icon: FaQuestionCircle,badge: null,   color: "text-amber-400",   bg: "bg-amber-500/10" },
 ] as const
 
 export const NOTE_FROM_CHAT_EVENT = "notebook:save-as-note"
@@ -564,7 +564,7 @@ export function StudioSidebar({
                   return (
                     <button
                       key={tool.id}
-                      className="flex items-center justify-between rounded-lg border bg-card p-3 text-left transition-colors hover:bg-muted"
+                      className={cn("flex items-center justify-between rounded-lg border p-3 text-left transition-colors hover:brightness-95 dark:hover:brightness-110", tool.bg)}
                       disabled={tool.id === "quiz" && quizLoading}
                       onClick={() => tool.id === "quiz" ? generateQuiz() : devTodo(tool.id)}
                     >
