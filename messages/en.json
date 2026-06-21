@@ -327,7 +327,20 @@
     "clearHistory": "Clear chat history",
     "clearHistoryHint": "The chat history is only visible to you.",
     "copyMessage": "Copy message",
-    "copied": "Copied"
+    "copied": "Copied",
+    "configureTitle": "Configure chat",
+    "configureDescription": "Notebooks can be customised to meet specific needs: researching, getting help with learning, showing different perspectives, or communicating in a particular style and tone.",
+    "configureGoalLabel": "Set conversation goal, style, or role",
+    "configureModeStandard": "Standard",
+    "configureModeLearning": "Learning aid",
+    "configureModeCustom": "Custom",
+    "configureModeStandardDesc": "Best suited for general research and brainstorming tasks.",
+    "configureModeLearningDesc": "Explains concepts clearly, uses examples, and supports learning.",
+    "configureModeCustomDesc": "No specific role — behaves like a general-purpose assistant.",
+    "configureLengthLabel": "Select response length",
+    "configureLengthStandard": "Standard",
+    "configureLengthLonger": "Longer",
+    "configureLengthShorter": "Shorter"
   },
   "sourceDetail": {
     "summary": "Source overview",

@@ -24,9 +24,11 @@ export async function POST(req: Request) {
   }
 
   const body = await req.json()
-  const { notebookId, messages: uiMessages } = body as {
+  const { notebookId, messages: uiMessages, chatMode, chatLength } = body as {
     notebookId: string
     messages: ChatMessage[]
+    chatMode?: string
+    chatLength?: string
   }
 
   if (!notebookId || !Array.isArray(uiMessages)) {
@@ -94,7 +96,7 @@ export async function POST(req: Request) {
   }))
 
   const modelMessages = await convertToModelMessages(uiMessages)
-  const systemPrompt = buildSystemPrompt(citationChunks)
+  const systemPrompt = buildSystemPrompt(citationChunks, chatMode, chatLength)
 
   const result = streamText({
     model: anthropic("claude-sonnet-4-6"),
@@ -137,7 +139,7 @@ export async function POST(req: Request) {
   })
 }
 
-function buildSystemPrompt(chunks: CitationChunk[]): string {
+function buildSystemPrompt(chunks: CitationChunk[], chatMode?: string, chatLength?: string): string {
   if (chunks.length === 0) {
     return `You are a helpful assistant. No sources are indexed yet. Tell the user in German that no sources are available.`
   }
@@ -146,6 +148,20 @@ function buildSystemPrompt(chunks: CitationChunk[]): string {
     .map((c) => `[${c.index}] ${c.sourceTitle}\n---\n${c.content}\n---`)
     .join("\n\n")
 
+  const modeInstruction =
+    chatMode === "learning"
+      ? "- Explain concepts clearly and didactically. Use examples and analogies. Check for understanding."
+      : chatMode === "custom"
+        ? "- Respond as a general-purpose assistant without a specific role."
+        : "- Be helpful for research and brainstorming tasks."
+
+  const lengthInstruction =
+    chatLength === "longer"
+      ? "- Provide comprehensive, detailed answers."
+      : chatLength === "shorter"
+        ? "- Be very concise. Answer in 1-3 sentences maximum."
+        : "- Be concise and accurate."
+
   return `You are a helpful assistant that answers questions exclusively based on the provided sources.
 
 Rules:
@@ -153,7 +169,8 @@ Rules:
 - If the information is not in the sources, say so explicitly.
 - Cite sources inline using [N] notation (e.g. [1], [2]) directly after the relevant sentence.
 - Always respond in German.
-- Be concise and accurate.
+${modeInstruction}
+${lengthInstruction}
 
 Sources:
 ${sourceList}`

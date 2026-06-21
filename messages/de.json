@@ -327,7 +327,20 @@
     "clearHistory": "Chatprotokoll löschen",
     "clearHistoryHint": "Der Chatverlauf ist nur für Sie sichtbar.",
     "copyMessage": "Nachricht kopieren",
-    "copied": "Kopiert"
+    "copied": "Kopiert",
+    "configureTitle": "Chat konfigurieren",
+    "configureDescription": "Notebooks lassen sich so anpassen, dass sie bestimmten Anforderungen gerecht werden: recherchieren, Hilfe beim Lernen erhalten, unterschiedliche Perspektiven aufzeigen oder in einem bestimmten Stil und Tonfall kommunizieren.",
+    "configureGoalLabel": "Gesprächsziel, -stil oder -rolle festlegen",
+    "configureModeStandard": "Standard",
+    "configureModeLearning": "Lernhilfe",
+    "configureModeCustom": "Benutzerdefiniert",
+    "configureModeStandardDesc": "Eignet sich vor allem für allgemeine Recherche- und Brainstorming-Aufgaben.",
+    "configureModeLearningDesc": "Erklärt Konzepte verständlich, nutzt Beispiele und unterstützt beim Lernen.",
+    "configureModeCustomDesc": "Ohne spezielle Vorgaben — verhält sich wie ein allgemeiner Assistent.",
+    "configureLengthLabel": "Antwortlänge auswählen",
+    "configureLengthStandard": "Standard",
+    "configureLengthLonger": "Länger",
+    "configureLengthShorter": "Kürzer"
   },
   "sourceDetail": {
     "summary": "Quellenübersicht",
