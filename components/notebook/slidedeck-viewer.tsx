@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useCallback } from "react"
+import { useTranslations } from "next-intl"
 import { X, ChevronLeft, ChevronRight } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { SlideData } from "@/lib/google-slides-export"
@@ -13,6 +14,7 @@ interface SlidedeckViewerProps {
 }
 
 export function SlidedeckViewer({ slideData, currentIndex, onIndexChange, onClose }: SlidedeckViewerProps) {
+  const t = useTranslations("slidedeck")
   const total = slideData.slides.length
   const slide = slideData.slides[currentIndex]
   const isTitleSlide = currentIndex === 0
@@ -49,7 +51,7 @@ export function SlidedeckViewer({ slideData, currentIndex, onIndexChange, onClos
       <button
         className="absolute right-4 top-4 rounded-full p-2 text-white/60 transition-colors hover:bg-white/10 hover:text-white"
         onClick={onClose}
-        aria-label="Schließen"
+        aria-label={t("viewerClose")}
       >
         <X className="size-5" />
       </button>
@@ -59,7 +61,7 @@ export function SlidedeckViewer({ slideData, currentIndex, onIndexChange, onClos
         className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full p-2 text-white/50 transition-colors hover:bg-white/10 hover:text-white disabled:pointer-events-none disabled:opacity-20"
         onClick={goPrev}
         disabled={currentIndex === 0}
-        aria-label="Vorherige Folie"
+        aria-label={t("viewerPrev")}
       >
         <ChevronLeft className="size-8" />
       </button>
@@ -102,7 +104,7 @@ export function SlidedeckViewer({ slideData, currentIndex, onIndexChange, onClos
         className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full p-2 text-white/50 transition-colors hover:bg-white/10 hover:text-white disabled:pointer-events-none disabled:opacity-20"
         onClick={goNext}
         disabled={currentIndex === total - 1}
-        aria-label="Nächste Folie"
+        aria-label={t("viewerNext")}
       >
         <ChevronRight className="size-8" />
       </button>

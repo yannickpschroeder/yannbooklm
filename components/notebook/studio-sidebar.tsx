@@ -932,7 +932,7 @@ export function StudioSidebar({
                   variant="ghost"
                   size="icon"
                   className="size-7 shrink-0"
-                  aria-label="Zurück"
+                  aria-label={tCommon("back")}
                   onClick={closeQuiz}
                 >
                   <ChevronLeft className="size-4" />
@@ -971,7 +971,7 @@ export function StudioSidebar({
                   variant="ghost"
                   size="icon"
                   className="size-7 shrink-0"
-                  aria-label="Zurück"
+                  aria-label={tCommon("back")}
                   onClick={closeFlashcards}
                 >
                   <ChevronLeft className="size-4" />

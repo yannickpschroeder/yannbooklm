@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useTranslations } from "next-intl"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { RefreshCw, FileText, Globe, AlignLeft } from "lucide-react"
@@ -19,18 +20,6 @@ const SOURCE_ICONS: Record<string, React.ReactNode> = {
   text: <AlignLeft className="size-3.5 text-blue-400" />,
 }
 
-const COUNT_OPTIONS = [
-  { label: "Weniger", value: 10 },
-  { label: "Standard (Standardeinstellung)", value: 15 },
-  { label: "Mehr", value: 25 },
-] as const
-
-const DIFFICULTY_OPTIONS = [
-  { label: "Einfach", value: "einfach" as Difficulty },
-  { label: "Mittel (Standardeinstellung)", value: "mittel" as Difficulty },
-  { label: "Schwierig", value: "schwierig" as Difficulty },
-] as const
-
 interface Props {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -39,10 +28,23 @@ interface Props {
 }
 
 export function QuizSourcesModal({ open, onOpenChange, usedSources, onGenerate }: Props) {
+  const t = useTranslations("quiz")
   const [view, setView] = useState<View>("sources")
   const [count, setCount] = useState<number>(15)
   const [difficulty, setDifficulty] = useState<Difficulty>("mittel")
   const [focusTopic, setFocusTopic] = useState("")
+
+  const countOptions = [
+    { label: t("countFew"),      value: 10 },
+    { label: t("countStandard"), value: 15 },
+    { label: t("countMany"),     value: 25 },
+  ]
+
+  const difficultyOptions = [
+    { label: t("diffEasy"),   value: "einfach"   as Difficulty },
+    { label: t("diffMedium"), value: "mittel"    as Difficulty },
+    { label: t("diffHard"),   value: "schwierig" as Difficulty },
+  ]
 
   function handleGenerate() {
     onOpenChange(false)
@@ -63,19 +65,19 @@ export function QuizSourcesModal({ open, onOpenChange, usedSources, onGenerate }
             <DialogHeader>
               <div className="flex items-center gap-2">
                 <FileText className="size-4" />
-                <DialogTitle>Quellen</DialogTitle>
+                <DialogTitle>{t("sourcesTitle")}</DialogTitle>
               </div>
               <button
                 onClick={() => setView("customize")}
                 className="absolute right-12 top-4 rounded-sm p-1 opacity-70 hover:opacity-100 hover:bg-muted"
-                aria-label="Quiz anpassen"
+                aria-label={t("customizeAria")}
               >
                 <RefreshCw className="size-4" />
               </button>
             </DialogHeader>
             <div className="flex flex-wrap gap-2 py-2">
               {usedSources.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Keine Quellen gespeichert.</p>
+                <p className="text-sm text-muted-foreground">{t("noSources")}</p>
               ) : (
                 usedSources.map((s) => (
                   <button
@@ -93,14 +95,14 @@ export function QuizSourcesModal({ open, onOpenChange, usedSources, onGenerate }
         ) : (
           <>
             <DialogHeader>
-              <DialogTitle>Quiz anpassen</DialogTitle>
+              <DialogTitle>{t("customizeTitle")}</DialogTitle>
             </DialogHeader>
             <div className="flex flex-col gap-5 py-2">
               <div className="grid grid-cols-2 gap-6">
                 <div>
-                  <p className="mb-2 text-sm font-medium">Anzahl der Fragen</p>
+                  <p className="mb-2 text-sm font-medium">{t("countLabel")}</p>
                   <div className="flex flex-col items-start gap-2">
-                    {COUNT_OPTIONS.map((o) => (
+                    {countOptions.map((o) => (
                       <button
                         key={o.value}
                         onClick={() => setCount(o.value)}
@@ -118,9 +120,9 @@ export function QuizSourcesModal({ open, onOpenChange, usedSources, onGenerate }
                   </div>
                 </div>
                 <div>
-                  <p className="mb-2 text-sm font-medium">Schwierigkeitsgrad</p>
+                  <p className="mb-2 text-sm font-medium">{t("difficultyLabel")}</p>
                   <div className="flex flex-col items-start gap-2">
-                    {DIFFICULTY_OPTIONS.map((o) => (
+                    {difficultyOptions.map((o) => (
                       <button
                         key={o.value}
                         onClick={() => setDifficulty(o.value)}
@@ -140,17 +142,17 @@ export function QuizSourcesModal({ open, onOpenChange, usedSources, onGenerate }
               </div>
 
               <div>
-                <p className="mb-2 text-sm font-medium">Was soll das Thema sein?</p>
+                <p className="mb-2 text-sm font-medium">{t("topicLabel")}</p>
                 <textarea
                   value={focusTopic}
                   onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setFocusTopic(e.target.value)}
-                  placeholder={`Vorschläge\n• Erstelle mir ein Quiz, mit dem ich für meinen Geschichtstest über das Alte Ägypten lernen kann\n• Das Quiz muss 30 Fragen enthalten (maximal 50 Fragen sind erlaubt)\n• Das Quiz muss auf eine bestimmte Quelle beschränkt sein (z. B. „der Artikel über Italien")\n• Das Quiz muss sich ausschließlich auf die wichtigsten Konzepte der Physik konzentrieren`}
+                  placeholder={t("topicPlaceholder")}
                   className="min-h-32 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring"
                 />
               </div>
 
               <div className="flex justify-end">
-                <Button onClick={handleGenerate}>Generieren</Button>
+                <Button onClick={handleGenerate}>{t("generate")}</Button>
               </div>
             </div>
           </>

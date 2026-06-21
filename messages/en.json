@@ -192,7 +192,10 @@
     "lengthStandard": "Standard (15 slides)",
     "topicLabel": "Describe the presentation (optional)",
     "topicPlaceholder": "e.g. Create a beginner-friendly presentation focusing on practical applications",
-    "create": "Create"
+    "create": "Create",
+    "viewerClose": "Close",
+    "viewerPrev": "Previous slide",
+    "viewerNext": "Next slide"
   },
   "notes": {
     "title": "Notes",
@@ -294,6 +297,7 @@
     "delete": "Delete",
     "edit": "Edit",
     "create": "Create",
-    "close": "Close"
+    "close": "Close",
+    "back": "Back"
   }
 }

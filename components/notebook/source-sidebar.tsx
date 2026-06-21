@@ -15,11 +15,6 @@ import {
   Pencil,
   StickyNote,
   X,
-  ExternalLink,
-  ChevronLeft,
-  ChevronDown,
-  ChevronUp,
-  Sparkles,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -33,13 +28,11 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { AddSourceModal } from "@/components/sources/add-source-modal"
 import { FaYoutube } from "react-icons/fa"
-import Markdown from "react-markdown"
-import remarkGfm from "remark-gfm"
 import { deleteSource, renameSource, toggleSourceEnabled } from "@/lib/actions/sources"
 import { onSourceView, openSourceView, onOpenSourceById } from "@/lib/source-view-event"
-import { resolveS3ImagesInContent } from "@/lib/s3-image-url"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { SourceDetailPanel } from "@/components/notebook/source-detail-panel"
 import type { Source } from "@/db/schema"
 import type { CitationChunk } from "@/lib/types/chat"
 
@@ -59,187 +52,6 @@ function SourceTypeIcon({ type, status }: { type: Source["type"]; status: Source
   return <FileText className="size-4 shrink-0 text-red-400" />
 }
 
-function CitationSourceIcon({ type }: { type: string }) {
-  if (type === "youtube") return <FaYoutube className="size-4 shrink-0 text-red-500" />
-  if (type === "url") return <Globe className="size-4 shrink-0 text-blue-400" />
-  return <FileText className="size-4 shrink-0 text-red-400" />
-}
-
-function buildSourceLink(chunk: CitationChunk) {
-  if (chunk.sourceType === "youtube" && chunk.url && chunk.positionStart != null) {
-    const id = chunk.url.match(/(?:youtube\.com\/watch\?.*v=|youtu\.be\/)([\w-]{11})/)?.[1]
-    if (id) {
-      const m = Math.floor(chunk.positionStart / 60)
-      const s = String(chunk.positionStart % 60).padStart(2, "0")
-      return {
-        href: `https://www.youtube.com/watch?v=${id}&t=${chunk.positionStart}`,
-        label: `${m}:${s}`,
-      }
-    }
-  }
-  if (chunk.sourceType === "pdf" && chunk.pageNumber != null) {
-    return { href: null, label: `Seite ${chunk.pageNumber}` }
-  }
-  if (chunk.url) {
-    try {
-      return { href: chunk.url, label: new URL(chunk.url).hostname }
-    } catch {
-      /* noop */
-    }
-  }
-  return null
-}
-
-// ─── Source detail panel ───────────────────────────────────────────────────────
-
-function SourceDetailPanel({ chunk, onClose }: { chunk: CitationChunk; onClose: () => void }) {
-  const link = buildSourceLink(chunk)
-  const [summaryOpen, setSummaryOpen] = useState(false)
-
-  return (
-    <div className="flex h-full flex-col overflow-hidden">
-      {/* Header */}
-      <div className="flex h-12 shrink-0 items-center gap-2 border-b px-3">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-7 shrink-0"
-          onClick={onClose}
-          title="Zurück zu Quellen"
-        >
-          <ChevronLeft className="size-4" />
-        </Button>
-        <CitationSourceIcon type={chunk.sourceType} />
-        <span className="min-w-0 flex-1 truncate text-sm font-medium" title={chunk.sourceTitle}>
-          {chunk.sourceTitle}
-        </span>
-      </div>
-
-      <Separator />
-
-      {/* Quellenübersicht — card dropdown, fixed above scrollable content */}
-      {chunk.sourceSummary && (
-        <div className="my-2 shrink-0 px-3 py-2">
-          <div className="overflow-hidden rounded-lg bg-violet-500/10 ring-1 ring-violet-500/20">
-            <button
-              onClick={() => setSummaryOpen((p) => !p)}
-              className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm hover:bg-violet-500/10"
-            >
-              <Sparkles className="size-3.5 shrink-0 text-violet-400" />
-              <span className="flex-1 font-medium text-violet-100">Quellenübersicht</span>
-              {summaryOpen ? (
-                <ChevronUp className="size-3.5 shrink-0 text-violet-400" />
-              ) : (
-                <ChevronDown className="size-3.5 shrink-0 text-violet-400" />
-              )}
-            </button>
-            {summaryOpen && (
-              <div className="text-foreground max-h-64 overflow-y-auto border-t border-violet-500/20 p-5 text-sm leading-relaxed">
-                <Markdown remarkPlugins={[remarkGfm]}>{chunk.sourceSummary}</Markdown>
-                {chunk.sourceTopics && chunk.sourceTopics.length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    {chunk.sourceTopics.map((topic) => (
-                      <button
-                        key={topic}
-                        onClick={() =>
-                          window.dispatchEvent(
-                            new CustomEvent("notebook:ask", { detail: { text: topic } })
-                          )
-                        }
-                        className="rounded-full border border-violet-500/30 bg-violet-500/15 px-2.5 py-0.5 text-xs text-violet-300 hover:bg-violet-500/25"
-                      >
-                        {topic}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Content — scrollable, Markdown */}
-      <div className="text-foreground flex-1 overflow-y-auto px-4 py-4 text-sm leading-relaxed">
-        <Markdown
-          remarkPlugins={[remarkGfm]}
-          components={{
-            p(props) {
-              const { node: _node, children, ...rest } = props
-              return (
-                <p className="mb-3 last:mb-0" {...rest}>
-                  {children}
-                </p>
-              )
-            },
-            img(props) {
-              const { node: _node, src, alt, ...rest } = props
-              return (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={typeof src === "string" ? src : undefined}
-                  alt={alt ?? ""}
-                  className="my-3 w-full rounded-md object-cover"
-                  {...rest}
-                />
-              )
-            },
-            ul(props) {
-              const { node: _node, children, ...rest } = props
-              return (
-                <ul className="mb-3 list-disc space-y-1 pl-4 last:mb-0" {...rest}>
-                  {children}
-                </ul>
-              )
-            },
-            ol(props) {
-              const { node: _node, children, ...rest } = props
-              return (
-                <ol className="mb-3 list-decimal space-y-1 pl-4 last:mb-0" {...rest}>
-                  {children}
-                </ol>
-              )
-            },
-            li(props) {
-              const { node: _node, children, ...rest } = props
-              return <li {...rest}>{children}</li>
-            },
-            strong(props) {
-              const { node: _node, children, ...rest } = props
-              return (
-                <strong className="font-semibold" {...rest}>
-                  {children}
-                </strong>
-              )
-            },
-          }}
-        >
-          {resolveS3ImagesInContent(chunk.content)}
-        </Markdown>
-      </div>
-
-      <Separator />
-
-      {/* Footer: Quelle anzeigen */}
-      <div className="shrink-0 px-4 py-3">
-        {link?.href ? (
-          <a
-            href={link.href}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-primary flex items-center gap-1.5 text-xs hover:underline"
-          >
-            <ExternalLink className="size-3" />
-            Quelle anzeigen
-          </a>
-        ) : link ? (
-          <span className="text-muted-foreground text-xs">{link.label}</span>
-        ) : null}
-      </div>
-    </div>
-  )
-}
-
 // ─── Main SourceSidebar ────────────────────────────────────────────────────────
 
 export function SourceSidebar({
@@ -256,6 +68,7 @@ export function SourceSidebar({
   const [renameValue, setRenameValue] = useState("")
   const [isPending, startTransition] = useTransition()
   const t = useTranslations("sources")
+  const tCommon = useTranslations("common")
   const [activeChunk, setActiveChunk] = useState<CitationChunk | null>(null)
   const [loadingSourceId, setLoadingSourceId] = useState<string | null>(null)
   const [enabledMap, setEnabledMap] = useState<Record<string, boolean>>(() =>
@@ -306,7 +119,7 @@ export function SourceSidebar({
             if (res.status === 404 || !res.ok) {
               if (!ctrl.cancelled) {
                 setActiveUploads((prev) => prev.filter((u) => u.sourceId !== sourceId))
-                toast.error("Verarbeitung fehlgeschlagen")
+                toast.error(t("processingFailed"))
               }
               return
             }
@@ -323,7 +136,7 @@ export function SourceSidebar({
             if (status === "error") {
               if (!ctrl.cancelled) {
                 setActiveUploads((prev) => prev.filter((u) => u.sourceId !== sourceId))
-                toast.error("Verarbeitung fehlgeschlagen")
+                toast.error(t("processingFailed"))
               }
               return
             }
@@ -333,7 +146,7 @@ export function SourceSidebar({
         }
         if (!ctrl.cancelled) {
           setActiveUploads((prev) => prev.filter((u) => u.sourceId !== sourceId))
-          toast.error("Timeout beim Verarbeiten")
+          toast.error(t("processingTimeout"))
         }
       })()
       return ctrl
@@ -364,7 +177,7 @@ export function SourceSidebar({
     startTransition(async () => {
       await renameSource(renameTarget.id, notebookId, renameValue.trim())
       setRenameTarget(null)
-      toast.success("Quelle umbenannt")
+      toast.success(t("renameSuccess"))
       window.location.reload()
     })
   }
@@ -372,7 +185,7 @@ export function SourceSidebar({
   function handleDelete(source: Source) {
     startTransition(async () => {
       await deleteSource(source.id, notebookId)
-      toast.success("Quelle entfernt")
+      toast.success(t("removeSuccess"))
       window.location.reload()
     })
   }
@@ -422,7 +235,7 @@ export function SourceSidebar({
       setActiveChunk(chunk)
       openSourceView(chunk)
     } catch {
-      toast.error("Vorschau konnte nicht geladen werden")
+      toast.error(t("previewError"))
     } finally {
       setLoadingSourceId(null)
     }
@@ -446,7 +259,7 @@ export function SourceSidebar({
       >
         {/* Header */}
         <div className={cn("flex h-12 shrink-0 items-center border-b", collapsed ? "justify-center px-0" : "justify-between px-3")}>
-          {!collapsed && <span className="text-sm font-medium">Quellen</span>}
+          {!collapsed && <span className="text-sm font-medium">{t("title")}</span>}
           <Button
             variant="ghost"
             size="icon"
@@ -481,7 +294,13 @@ export function SourceSidebar({
           </div>
         ) : activeChunk ? (
           /* Source detail view */
-          <SourceDetailPanel chunk={activeChunk} onClose={() => setActiveChunk(null)} />
+          <SourceDetailPanel
+            chunk={activeChunk}
+            onClose={() => setActiveChunk(null)}
+            onTopicClick={(topic) =>
+              window.dispatchEvent(new CustomEvent("notebook:set-input", { detail: { text: topic } }))
+            }
+          />
         ) : (
           /* Normal sources list */
           <>
@@ -493,13 +312,13 @@ export function SourceSidebar({
                 onClick={() => setModalOpen(true)}
               >
                 <Plus className="size-4" />
-                Quellen hinzufügen
+                {t("addSources")}
               </Button>
 
               <div className="relative">
                 <Search className="text-muted-foreground absolute top-2.5 left-2.5 size-3.5" />
                 <Input
-                  placeholder="Quellen durchsuchen"
+                  placeholder={t("searchPlaceholder")}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="h-8 pl-8 text-xs"
@@ -547,7 +366,7 @@ export function SourceSidebar({
                           type="button"
                           onClick={() => handleCancelUpload(upload.sourceId)}
                           className="text-muted-foreground hover:text-foreground shrink-0 rounded p-0.5"
-                          title="Abbrechen"
+                          title={tCommon("cancel")}
                         >
                           <X className="size-3" />
                         </button>
@@ -560,8 +379,8 @@ export function SourceSidebar({
                   <li>
                     <p className="text-muted-foreground py-6 text-center text-xs">
                       {initialSources.length === 0
-                        ? "Noch keine Quellen vorhanden"
-                        : "Keine Treffer"}
+                        ? t("noSourcesAvailable")
+                        : t("noResults")}
                     </p>
                   </li>
                 ) : (
@@ -590,21 +409,21 @@ export function SourceSidebar({
                       <DropdownMenu>
                         <DropdownMenuTrigger
                           className="hover:bg-muted-foreground/20 shrink-0 rounded p-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100"
-                          aria-label="Optionen"
+                          aria-label={t("optionsMenu")}
                         >
                           <MoreHorizontal className="text-muted-foreground size-4" />
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-max">
                           <DropdownMenuItem className="whitespace-nowrap" onClick={() => handleRenameOpen(source)}>
                             <Pencil className="mr-2 size-4" />
-                            Quelle umbenennen
+                            {t("rename")}
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             className="whitespace-nowrap text-destructive focus:text-destructive"
                             onClick={() => handleDelete(source)}
                           >
                             <Trash2 className="mr-2 size-4" />
-                            Quelle entfernen
+                            {t("remove")}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -639,7 +458,7 @@ export function SourceSidebar({
       <Dialog open={!!renameTarget} onOpenChange={(o) => !o && setRenameTarget(null)}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Quelle umbenennen</DialogTitle>
+            <DialogTitle>{t("renameDialogTitle")}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleRenameSubmit} className="space-y-4">
             <Input
@@ -650,10 +469,10 @@ export function SourceSidebar({
             />
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => setRenameTarget(null)}>
-                Abbrechen
+                {tCommon("cancel")}
               </Button>
               <Button type="submit" disabled={isPending || !renameValue.trim()}>
-                Speichern
+                {tCommon("save")}
               </Button>
             </div>
           </form>

@@ -46,6 +46,7 @@ async function ingestPdf(page: Page, pdfPath: string) {
   await expect(page.getByPlaceholder("Text eingeben", { exact: false })).not.toBeDisabled({
     timeout: 5 * 60_000,
   })
+  await expect(page.locator("aside button").filter({ hasText: /kreta/i }).first()).toBeEnabled()
 }
 
 // @local
@@ -102,7 +103,10 @@ test.describe("RAG Chat @local", () => {
     const sourceButton = page.locator("aside button").filter({ hasText: /kreta/i }).first()
     await sourceButton.click()
 
-    await expect(page.getByTitle("Zurück zu Quellen")).toBeVisible({ timeout: 10_000 })
+    await page.getByLabel("source title - ").waitFor({ state: "visible", timeout: 30_000 })
+    await page.getByLabel("Back to sources").waitFor({ state: "visible", timeout: 30_000 })
+    await expect(page.getByLabel("Back to sources")).toBeVisible({ timeout: 10_000 })
+
     await expect(page.locator("aside").getByText(/kreta/i).first()).toBeVisible()
   })
 
@@ -114,7 +118,10 @@ test.describe("RAG Chat @local", () => {
 
     const sourceButton = page.locator("aside button").filter({ hasText: /kreta/i }).first()
     await sourceButton.click()
-    await expect(page.getByTitle("Zurück zu Quellen")).toBeVisible({ timeout: 10_000 })
+
+    await page.getByLabel("source title - ").waitFor({ state: "visible", timeout: 30_000 })
+    await page.getByLabel("Back to sources").waitFor({ state: "visible", timeout: 30_000 })
+    await expect(page.getByLabel("Back to sources")).toBeVisible({ timeout: 10_000 })
 
     await page.getByText("Quellenübersicht").click()
     const topicBadge = page.locator("aside button.rounded-full").first()
@@ -124,8 +131,8 @@ test.describe("RAG Chat @local", () => {
     await topicBadge.click()
 
     // Restrict to the chat message bubble (bg-primary) to avoid matching the sidebar badge
-    await expect(
-      page.locator(".bg-primary").filter({ hasText: topicText! })
-    ).toBeVisible({ timeout: 30_000 })
+    await expect(page.locator(".bg-primary").filter({ hasText: topicText! })).toBeVisible({
+      timeout: 30_000,
+    })
   })
 })

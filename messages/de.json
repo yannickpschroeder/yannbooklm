@@ -192,7 +192,10 @@
     "lengthStandard": "Standard (15 Folien)",
     "topicLabel": "Beschreiben Sie die Präsentation (optional)",
     "topicPlaceholder": "z. B. Erstelle eine Präsentation für Einsteiger mit Fokus auf praktische Anwendungen",
-    "create": "Erstellen"
+    "create": "Erstellen",
+    "viewerClose": "Schließen",
+    "viewerPrev": "Vorherige Folie",
+    "viewerNext": "Nächste Folie"
   },
   "notes": {
     "title": "Notizen",
@@ -294,6 +297,7 @@
     "delete": "Löschen",
     "edit": "Bearbeiten",
     "create": "Erstellen",
-    "close": "Schließen"
+    "close": "Schließen",
+    "back": "Zurück"
   }
 }

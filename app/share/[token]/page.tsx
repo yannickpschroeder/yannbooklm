@@ -4,6 +4,8 @@ import { eq } from "drizzle-orm"
 import { notFound } from "next/navigation"
 import { SharedQuizClient } from "./shared-quiz-client"
 import type { QuizData } from "@/components/notebook/quiz-view"
+import { SharedFlashcardsClient } from "./shared-flashcards-client"
+import type { FlashcardData } from "@/components/notebook/flashcard-view"
 
 export default async function SharePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params
@@ -14,7 +16,7 @@ export default async function SharePage({ params }: { params: Promise<{ token: s
     .where(eq(studioOutputs.shareToken, token))
     .limit(1)
 
-  if (!output || output.type !== "quiz" || !output.data) notFound()
+  if (!output || !output.data) notFound()
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -25,7 +27,13 @@ export default async function SharePage({ params }: { params: Promise<{ token: s
         )}
       </header>
       <main className="mx-auto w-full max-w-4xl flex-1 px-6 py-6">
-        <SharedQuizClient data={output.data as QuizData} outputId={output.id} />
+        {output.type === "quiz" ? (
+          <SharedQuizClient data={output.data as QuizData} outputId={output.id} />
+        ) : output.type === "flashcards" ? (
+          <SharedFlashcardsClient data={output.data as FlashcardData} outputId={output.id} />
+        ) : (
+          notFound()
+        )}
       </main>
     </div>
   )

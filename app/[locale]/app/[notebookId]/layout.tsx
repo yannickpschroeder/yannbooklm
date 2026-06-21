@@ -19,7 +19,13 @@ export default async function NotebookLayout({
   if (!session?.user?.id) redirect("/login")
 
   const [notebook] = await db
-    .select({ id: notebooks.id, name: notebooks.name })
+    .select({
+      id: notebooks.id,
+      name: notebooks.name,
+      outputLanguage: notebooks.outputLanguage,
+      shareToken: notebooks.shareToken,
+      shareScope: notebooks.shareScope,
+    })
     .from(notebooks)
     .where(and(eq(notebooks.id, notebookId), eq(notebooks.userId, session.user.id)))
     .limit(1)
@@ -34,7 +40,13 @@ export default async function NotebookLayout({
 
   return (
     <div className="flex h-screen flex-col overflow-hidden">
-      <NotebookHeader notebookName={notebook.name} />
+      <NotebookHeader
+        notebookId={notebook.id}
+        notebookName={notebook.name}
+        outputLanguage={notebook.outputLanguage}
+        shareToken={notebook.shareToken}
+        shareScope={notebook.shareScope}
+      />
       <div className="flex flex-1 overflow-hidden">
         <SourceSidebar notebookId={notebookId} initialSources={notebookSources} />
         <NotebookShell notebookId={notebookId} initialNotes={initialNotes} initialStudioOutputs={initialStudioOutputs}>
