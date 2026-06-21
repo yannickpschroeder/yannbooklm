@@ -12,8 +12,11 @@ export default auth((req) => {
   const segments = pathname.split("/")
   const locale = segments[1] === "en" ? "en" : "de"
   const isLoginPage = /^\/(de|en)\/login|^\/login/.test(pathname)
+  const isSharePage = pathname.startsWith("/share/")
 
   const isLocaleRoot = /^\/(de|en)\/?$/.test(pathname)
+
+  if (isSharePage) return NextResponse.next()
 
   if (!req.auth && !isLoginPage) {
     return NextResponse.redirect(new URL(`/${locale}/login`, req.nextUrl))
