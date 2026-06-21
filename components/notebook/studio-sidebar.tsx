@@ -206,12 +206,14 @@ export function StudioSidebar({
   notebookId,
   initialNotes,
   initialStudioOutputs,
+  initialReadySourceCount,
   noteMode,
   onNoteModeChange,
 }: {
   notebookId: string
   initialNotes: Note[]
   initialStudioOutputs: StudioOutput[]
+  initialReadySourceCount: number
   noteMode: boolean
   onNoteModeChange: (active: boolean) => void
 }) {
@@ -220,6 +222,7 @@ export function StudioSidebar({
   const tCommon = useTranslations("common")
   const locale = useLocale()
   const [collapsed, setCollapsed] = useState(false)
+  const [activeSourceCount, setActiveSourceCount] = useState(initialReadySourceCount)
   const [notesList, setNotesList] = useState<Note[]>(initialNotes)
   const [studioOutputsList, setStudioOutputsList] = useState<StudioOutput[]>(initialStudioOutputs)
   const [activeNote, setActiveNote] = useState<Note | null>(null)
@@ -260,11 +263,19 @@ export function StudioSidebar({
   ].sort((a, b) => (a.loading ? -1 : b.loading ? 1 : b.createdAt.getTime() - a.createdAt.getTime()))
 
   useEffect(() => {
+    function onSourceCountChange(e: Event) {
+      setActiveSourceCount((e as CustomEvent<{ count: number }>).detail.count)
+    }
+    window.addEventListener("notebook:source-count-change", onSourceCountChange)
+    return () => window.removeEventListener("notebook:source-count-change", onSourceCountChange)
+  }, [])
+
+  useEffect(() => {
     async function onSaveAsNote(e: Event) {
-      const { content, sourceMessageId } = (
-        e as CustomEvent<{ content: string; sourceMessageId?: string }>
+      const { title, content, sourceMessageId } = (
+        e as CustomEvent<{ title?: string; content: string; sourceMessageId?: string }>
       ).detail
-      const note = await createNote(notebookId, t("defaultTitle"), content, sourceMessageId)
+      const note = await createNote(notebookId, title ?? t("defaultTitle"), content, sourceMessageId)
       if (!note) return
       setNotesList((prev) => [note, ...prev])
       toast.success(t("createSuccess"))
@@ -1936,6 +1947,12 @@ export function StudioSidebar({
                           (o) => o.type === tool.id && o.status === "generating"
                         )}
                         onClick={() => {
+                          if (activeSourceCount === 0) {
+                            window.dispatchEvent(new CustomEvent("notebook:ask", {
+                              detail: { text: tStudio(tool.labelKey), force: true },
+                            }))
+                            return
+                          }
                           if (tool.id === "quiz") generateQuiz()
                           else if (tool.id === "slidedeck") generateSlidedeck()
                           else if (tool.id === "flashcards") generateFlashcards()

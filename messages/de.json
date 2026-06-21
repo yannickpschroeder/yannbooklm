@@ -322,7 +322,12 @@
     "sourceCountPlural": "Quellen",
     "thinking": "Denkt nach…",
     "disclaimer": "YannBookLM kann Fehler machen. Überprüfe wichtige Informationen.",
-    "citationsLabel": "Quellen:"
+    "citationsLabel": "Quellen:",
+    "title": "Chat",
+    "clearHistory": "Chatprotokoll löschen",
+    "clearHistoryHint": "Der Chatverlauf ist nur für Sie sichtbar.",
+    "copyMessage": "Nachricht kopieren",
+    "copied": "Kopiert"
   },
   "sourceDetail": {
     "summary": "Quellenübersicht",

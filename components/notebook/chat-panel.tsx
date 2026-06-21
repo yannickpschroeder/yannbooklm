@@ -4,36 +4,56 @@ import { useState, useRef, useEffect } from "react"
 import { useChat } from "@ai-sdk/react"
 import { useTranslations } from "next-intl"
 import { DefaultChatTransport, isTextUIPart } from "ai"
-import { ArrowRight, BookmarkPlus, Loader2 } from "lucide-react"
+import { ArrowRight, BookmarkPlus, Check, Copy, Loader2, MoreHorizontal, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import { openSourceView } from "@/lib/source-view-event"
 import { NOTE_FROM_CHAT_EVENT } from "@/components/notebook/studio-sidebar"
 import { AssistantContent, CitationBadgeRow } from "@/components/notebook/chat-citations"
 import type { ChatMessage, CitationChunk } from "@/lib/types/chat"
 
-// ─── Save as note button ──────────────────────────────────────────────────────
+// ─── Message action buttons ───────────────────────────────────────────────────
 
-function SaveAsNoteButton({ messageId, content }: { messageId: string; content: string }) {
-  const t = useTranslations("notes")
+function MessageActions({ messageId, content }: { messageId: string; content: string }) {
+  const tNotes = useTranslations("notes")
+  const tChat = useTranslations("chat")
+  const [copied, setCopied] = useState(false)
 
-  function handleClick() {
+  function handleSaveNote() {
     const clean = content.replace(/\[\d+\]/g, "").trim()
+    const title = clean.slice(0, 60).trimEnd() + (clean.length > 60 ? "…" : "")
     window.dispatchEvent(
       new CustomEvent(NOTE_FROM_CHAT_EVENT, {
-        detail: { content: clean, sourceMessageId: messageId },
+        detail: { title, content: clean, sourceMessageId: messageId },
       })
     )
   }
 
+  async function handleCopy() {
+    const clean = content.replace(/\[\d+\]/g, "").trim()
+    await navigator.clipboard.writeText(clean)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
   return (
-    <button
-      onClick={handleClick}
-      title={t("saveAsNote")}
-      className="ml-auto opacity-0 transition-opacity group-hover:opacity-100 text-muted-foreground hover:text-foreground"
-    >
-      <BookmarkPlus className="size-3.5" />
-    </button>
+    <div className="ml-auto flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+      <button
+        onClick={handleCopy}
+        title={tChat("copyMessage")}
+        className="text-muted-foreground hover:text-foreground rounded p-0.5 transition-colors"
+      >
+        {copied ? <Check className="size-3.5 text-green-500" /> : <Copy className="size-3.5" />}
+      </button>
+      <button
+        onClick={handleSaveNote}
+        title={tNotes("saveAsNote")}
+        className="text-muted-foreground hover:text-foreground rounded p-0.5 transition-colors"
+      >
+        <BookmarkPlus className="size-3.5" />
+      </button>
+    </div>
   )
 }
 
@@ -53,7 +73,7 @@ export function ChatPanel({
   const [activeSourceCount, setActiveSourceCount] = useState(readySourceCount)
   const bottomRef = useRef<HTMLDivElement>(null)
 
-  const { messages, sendMessage, status } = useChat<ChatMessage>({
+  const { messages, sendMessage, status, setMessages } = useChat<ChatMessage>({
     transport: new DefaultChatTransport({
       api: "/api/chat",
       body: { notebookId },
@@ -78,11 +98,12 @@ export function ChatPanel({
 
   useEffect(() => {
     function onAsk(e: Event) {
-      const text = (e as CustomEvent<{ text: string }>).detail?.text?.trim()
-      if (!text || isStreaming || activeSourceCount === 0) return
+      const { text, force } = (e as CustomEvent<{ text: string; force?: boolean }>).detail ?? {}
+      if (!text?.trim() || isStreaming) return
+      if (!force && activeSourceCount === 0) return
       setInput("")
       setActiveCitation(null)
-      sendMessage({ text })
+      sendMessage({ text: text.trim() })
     }
     window.addEventListener("notebook:ask", onAsk)
     return () => window.removeEventListener("notebook:ask", onAsk)
@@ -106,6 +127,15 @@ export function ChatPanel({
     sendMessage({ text })
   }
 
+  async function handleClearHistory() {
+    await fetch("/api/chat/clear", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ notebookId }),
+    })
+    setMessages([])
+  }
+
   function handleCiteClick(c: CitationChunk) {
     const next = activeCitation?.id === c.id ? null : c
     setActiveCitation(next)
@@ -115,6 +145,25 @@ export function ChatPanel({
   return (
     <div className="flex flex-1 overflow-hidden">
       <div className="flex flex-1 flex-col overflow-hidden">
+        {/* Header */}
+        <div className="flex shrink-0 items-center justify-between border-b px-4 py-2">
+          <span className="text-sm font-semibold">{tChat("title")}</span>
+          <DropdownMenu>
+            <DropdownMenuTrigger className="hover:bg-accent flex size-7 shrink-0 items-center justify-center rounded-md transition-colors">
+              <MoreHorizontal className="size-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onClick={handleClearHistory}
+              >
+                <Trash2 className="size-4" />
+                {tChat("clearHistory")}
+              </DropdownMenuItem>
+              <p className="text-muted-foreground px-2 py-1 text-xs">{tChat("clearHistoryHint")}</p>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
         {/* Messages */}
         <div className="flex-1 overflow-y-auto px-4 py-6">
           {messages.length === 0 ? (
@@ -162,7 +211,7 @@ export function ChatPanel({
                           onCiteClick={handleCiteClick}
                         />
                       )}
-                      <SaveAsNoteButton messageId={msg.id} content={fullText} />
+                      <MessageActions messageId={msg.id} content={fullText} />
                     </div>
                   </div>
                 )
