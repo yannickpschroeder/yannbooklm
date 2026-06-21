@@ -24,7 +24,7 @@ export default async function SharePage({ params }: { params: Promise<{ token: s
           <span className="ml-3 text-sm text-muted-foreground">· {output.title}</span>
         )}
       </header>
-      <main className="mx-auto w-full max-w-2xl flex-1 py-6">
+      <main className="w-full flex-1 px-6 py-6">
         <SharedQuizClient data={output.data as QuizData} outputId={output.id} />
       </main>
     </div>
