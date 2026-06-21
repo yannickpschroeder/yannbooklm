@@ -13,6 +13,7 @@ import {
   MoreHorizontal,
   Trash2,
   Pencil,
+  StickyNote,
   X,
   ExternalLink,
   ChevronLeft,
@@ -54,6 +55,7 @@ function SourceTypeIcon({ type, status }: { type: Source["type"]; status: Source
   }
   if (type === "youtube") return <FaYoutube className="size-4 shrink-0 text-red-500" />
   if (type === "url") return <Globe className="size-4 shrink-0 text-blue-400" />
+  if (type === "text") return <StickyNote className="size-4 shrink-0 text-blue-400" />
   return <FileText className="size-4 shrink-0 text-red-400" />
 }
 
@@ -582,13 +584,13 @@ export function SourceSidebar({
                         >
                           <MoreHorizontal className="text-muted-foreground size-4" />
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleRenameOpen(source)}>
+                        <DropdownMenuContent align="end" className="w-max">
+                          <DropdownMenuItem className="whitespace-nowrap" onClick={() => handleRenameOpen(source)}>
                             <Pencil className="mr-2 size-4" />
                             Quelle umbenennen
                           </DropdownMenuItem>
                           <DropdownMenuItem
-                            className="text-destructive focus:text-destructive"
+                            className="whitespace-nowrap text-destructive focus:text-destructive"
                             onClick={() => handleDelete(source)}
                           >
                             <Trash2 className="mr-2 size-4" />
