@@ -154,7 +154,7 @@ export function QuizView({
           </div>
         </div>
 
-        <div className={cn("grid gap-4", readOnly ? "grid-cols-1" : "grid-cols-2")}>
+        <div className={readOnly ? "flex flex-col gap-4" : "grid grid-cols-2 gap-4"}>
           <div>
             <h3 className="mb-2 text-sm font-semibold">Behandelte Themen</h3>
             <ul className="space-y-1">
