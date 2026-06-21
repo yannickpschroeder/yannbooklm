@@ -55,35 +55,79 @@ export async function POST(req: Request) {
     return new Response("Empty message", { status: 400 })
   }
 
-  const embedding = await embedText(userText)
-
-  const topChunks = await db
-    .select({
-      id: childChunks.id,
-      sourceId: sources.id,
-      positionStart: childChunks.positionStart,
-      pageNumber: childChunks.pageNumber,
-      parentContent: parentChunks.content,
-      sourceTitle: sources.title,
-      sourceType: sources.type,
-      sourceSummary: sources.summary,
-      sourceTopics: sources.suggestedTopics,
-      sourceUrl: sources.url,
-    })
-    .from(childChunks)
-    .innerJoin(parentChunks, eq(parentChunks.id, childChunks.parentChunkId))
-    .innerJoin(sources, eq(sources.id, childChunks.sourceId))
-    .where(
-      and(
-        eq(sources.notebookId, notebookId),
-        eq(sources.status, "ready"),
-        eq(sources.enabled, true),
+  const [embedding, enabledSources] = await Promise.all([
+    embedText(userText),
+    db
+      .select({ id: sources.id })
+      .from(sources)
+      .where(
+        and(
+          eq(sources.notebookId, notebookId),
+          eq(sources.status, "ready"),
+          eq(sources.enabled, true),
+        ),
       ),
-    )
-    .orderBy(asc(cosineDistance(childChunks.embedding, embedding)))
-    .limit(5)
+  ])
 
-  const citationChunks: CitationChunk[] = topChunks.map((c, i) => ({
+  const chunkSelect = {
+    id: childChunks.id,
+    sourceId: sources.id,
+    positionStart: childChunks.positionStart,
+    pageNumber: childChunks.pageNumber,
+    parentContent: parentChunks.content,
+    sourceTitle: sources.title,
+    sourceType: sources.type,
+    sourceSummary: sources.summary,
+    sourceTopics: sources.suggestedTopics,
+    sourceUrl: sources.url,
+    distance: cosineDistance(childChunks.embedding, embedding),
+  }
+
+  // Hybrid retrieval: global top-20 for relevance + top-1 per source not yet represented.
+  // Highly relevant sources dominate; less relevant sources get one fallback chunk.
+  const [globalChunks, perSourceFallbacks] = await Promise.all([
+    db
+      .select(chunkSelect)
+      .from(childChunks)
+      .innerJoin(parentChunks, eq(parentChunks.id, childChunks.parentChunkId))
+      .innerJoin(sources, eq(sources.id, childChunks.sourceId))
+      .where(
+        and(
+          eq(sources.notebookId, notebookId),
+          eq(sources.status, "ready"),
+          eq(sources.enabled, true),
+        ),
+      )
+      .orderBy(asc(cosineDistance(childChunks.embedding, embedding)))
+      .limit(20),
+    Promise.all(
+      enabledSources.map((s) =>
+        db
+          .select(chunkSelect)
+          .from(childChunks)
+          .innerJoin(parentChunks, eq(parentChunks.id, childChunks.parentChunkId))
+          .innerJoin(sources, eq(sources.id, childChunks.sourceId))
+          .where(eq(sources.id, s.id))
+          .orderBy(asc(cosineDistance(childChunks.embedding, embedding)))
+          .limit(1)
+          .then((rows) => rows[0] ?? null),
+      ),
+    ),
+  ])
+
+  const coveredSources = new Set(globalChunks.map((c) => c.sourceId))
+  const fallbacks = perSourceFallbacks.filter(
+    (c): c is NonNullable<typeof c> => c !== null && !coveredSources.has(c.sourceId),
+  )
+
+  const seen = new Set<string>()
+  const topChunks = [...globalChunks, ...fallbacks].filter((c) => {
+    if (seen.has(c.id)) return false
+    seen.add(c.id)
+    return true
+  })
+
+const citationChunks: CitationChunk[] = topChunks.map((c, i) => ({
     index: i + 1,
     id: c.id,
     sourceId: c.sourceId,
@@ -117,17 +161,17 @@ export async function POST(req: Request) {
 
         const citedIndices = [
           ...new Set(
-            [...text.matchAll(/\[(\d+)\]/g)].map((m) => parseInt(m[1]) - 1),
+            [...text.matchAll(/\[(\d+)\]/g)].map((m) => parseInt(m[1])),
           ),
         ]
 
-        for (const [order, idx] of citedIndices.entries()) {
-          const chunk = citationChunks[idx]
+        for (const n of citedIndices) {
+          const chunk = citationChunks[n - 1]
           if (!chunk) continue
           await db.insert(messageCitations).values({
             messageId: assistantRow.id,
             childChunkId: chunk.id,
-            orderIndex: order,
+            orderIndex: n,
           })
         }
       } catch (err) {
@@ -169,7 +213,7 @@ function buildSystemPrompt(chunks: CitationChunk[], chatMode?: string, chatLengt
 Rules:
 - Answer ONLY based on the sources below. Do not use external knowledge.
 - If the information is not in the sources, say so explicitly.
-- Cite sources inline using [N] notation (e.g. [1], [2]) directly after the relevant sentence.
+- Cite sources inline using [N] notation (e.g. [1], [2]) directly after the relevant sentence. If multiple sources support the same statement, cite all of them (e.g. [1][3][7]).
 - Always respond in German.
 ${modeInstruction}
 ${lengthInstruction}

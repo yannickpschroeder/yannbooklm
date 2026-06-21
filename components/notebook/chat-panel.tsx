@@ -10,7 +10,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { cn } from "@/lib/utils"
 import { openSourceView } from "@/lib/source-view-event"
 import { NOTE_FROM_CHAT_EVENT } from "@/components/notebook/studio-sidebar"
-import { AssistantContent, CitationBadgeRow } from "@/components/notebook/chat-citations"
+import { AssistantContent } from "@/components/notebook/chat-citations"
 import { ChatConfigModal, type ChatConfig } from "@/components/notebook/chat-config-modal"
 import type { ChatMessage, CitationChunk } from "@/lib/types/chat"
 
@@ -211,8 +211,6 @@ export function ChatPanel({
                   )
                 }
 
-                const uniqueCitations = [...new Map(citations.map((c) => [c.id, c])).values()]
-
                 return (
                   <div key={msg.id} className="group flex flex-col gap-2">
                     <div className="text-sm leading-relaxed">
@@ -223,13 +221,6 @@ export function ChatPanel({
                         onCiteClick={handleCiteClick}
                       />
                     </div>
-                    {uniqueCitations.length > 0 && (
-                      <CitationBadgeRow
-                        citations={uniqueCitations}
-                        activeCitation={activeCitation}
-                        onCiteClick={handleCiteClick}
-                      />
-                    )}
                     <MessageActions messageId={msg.id} content={fullText} />
                   </div>
                 )

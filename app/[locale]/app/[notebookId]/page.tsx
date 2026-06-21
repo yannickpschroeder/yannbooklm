@@ -66,7 +66,7 @@ export default async function NotebookPage({
       const alreadyAdded = group.citations.some((c) => c.id === row.citationId)
       if (!alreadyAdded) {
         group.citations.push({
-          index: group.citations.length + 1,
+          index: row.citationOrder ?? group.citations.length + 1,
           id: row.citationId,
           sourceTitle: row.sourceTitle,
           sourceType: row.sourceType ?? "url",

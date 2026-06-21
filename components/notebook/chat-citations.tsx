@@ -5,9 +5,8 @@ import { useTranslations } from "next-intl"
 import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import rehypeRaw from "rehype-raw"
-import { FileText, Globe, ExternalLink } from "lucide-react"
+import { FileText, Globe, ExternalLink, ChevronsRightLeft } from "lucide-react"
 import { FaYoutube } from "react-icons/fa"
-import { ChevronsRightLeft } from "lucide-react"
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
@@ -127,9 +126,51 @@ export function CitationBadgeRow({ citations, activeCitation, onCiteClick }: { c
 }
 
 export function AssistantContent({ text, citations, activeCitation, onCiteClick }: { text: string; citations: CitationChunk[]; activeCitation: CitationChunk | null; onCiteClick: (c: CitationChunk) => void }) {
-  const processed =
+  const byOrigIndex = new Map(citations.map((c) => [c.index, c]))
+
+  // Collect referenced original indices in first-appearance order.
+  // Handles both [N] and [N, M] (comma-separated inside one bracket pair).
+  const seenOrder: number[] = []
+  const seenSet = new Set<number>()
+  for (const match of text.matchAll(/\[(\d+(?:,\s*\d+)*)\]/g)) {
+    for (const part of match[1].split(",")) {
+      const n = parseInt(part.trim())
+      if (!seenSet.has(n) && byOrigIndex.has(n)) {
+        seenOrder.push(n)
+        seenSet.add(n)
+      }
+    }
+  }
+
+  // Map original index → sequential display index (1, 2, 3…)
+  const toDisplay = new Map(seenOrder.map((n, i) => [n, i + 1]))
+  const displayCitations = seenOrder.map((n) => ({ ...byOrigIndex.get(n)!, index: toDisplay.get(n)! }))
+  const byDisplayIndex = new Map(displayCitations.map((c) => [c.index, c]))
+
+  // Renumber text: [N, M] → [d(N)][d(M)], [N] → [d(N)], drop unresolved refs
+  const renumbered =
     citations.length > 0
       ? text
+          .replace(/\[(\d+(?:,\s*\d+)+)\]/g, (_, inner: string) =>
+            inner
+              .split(",")
+              .map((s) => {
+                const d = toDisplay.get(parseInt(s.trim()))
+                return d != null ? `[${d}]` : ""
+              })
+              .filter(Boolean)
+              .join(""),
+          )
+          .replace(/\[(\d+)\]/g, (_, s) => {
+            const d = toDisplay.get(parseInt(s))
+            return d != null ? `[${d}]` : ""
+          })
+      : text
+
+  // Convert consecutive [N][M]… → <cite data-indices> and lone [N] → <cite data-idx>
+  const processed =
+    citations.length > 0
+      ? renumbered
           .replace(/(\[\d+\])(\s*\[\d+\])+/g, (match) => {
             const indices = [...match.matchAll(/\[(\d+)\]/g)].map((m) => m[1])
             return `<cite data-indices="${indices.join(",")}"></cite>`
@@ -146,13 +187,13 @@ export function AssistantContent({ text, citations, activeCitation, onCiteClick 
           const { node: _node, ...rest } = props
           const attrs = rest as Record<string, string>
           if (attrs["data-indices"]) {
-            const badges = attrs["data-indices"].split(",").map((i) => citations[parseInt(i) - 1]).filter(Boolean) as CitationChunk[]
+            const badges = attrs["data-indices"].split(",").map((i) => byDisplayIndex.get(parseInt(i))).filter(Boolean) as CitationChunk[]
             if (badges.length === 0) return null
             return <InlineCitationGroup badges={badges} activeCitation={activeCitation} onCiteClick={onCiteClick} />
           }
           const idx = attrs["data-idx"]
           if (!idx) return null
-          const citation = citations[parseInt(idx) - 1]
+          const citation = byDisplayIndex.get(parseInt(idx))
           if (!citation) return null
           return <CitationBadge citation={citation} active={activeCitation?.id === citation.id} onClick={() => onCiteClick(citation)} />
         },
