@@ -2220,13 +2220,12 @@ export function StudioSidebar({
                                           <DropdownMenuItem
                                             className="whitespace-nowrap"
                                             onClick={() => {
-                                              if (url)
-                                                window.open(
-                                                  slidesUrlToExportUrl(url, "present"),
-                                                  "_blank",
-                                                  "noopener,noreferrer"
-                                                )
-                                              else toast.error(tStudio("slidedeckNoUrl"))
+                                              const o = studioOutputsList.find((x) => x.id === item.id)
+                                              if (o?.data) {
+                                                openSlidedeck(o)
+                                                setSlideViewerIndex(0)
+                                                setSlideViewerOpen(true)
+                                              } else toast.error(tStudio("slidedeckNoUrl"))
                                             }}
                                           >
                                             <Play className="size-4" />

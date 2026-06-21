@@ -9,11 +9,13 @@ export function NotebookShell({
   notebookId,
   initialNotes,
   initialStudioOutputs,
+  initialReadySourceCount,
 }: {
   children: React.ReactNode
   notebookId: string
   initialNotes: Note[]
   initialStudioOutputs: StudioOutput[]
+  initialReadySourceCount: number
 }) {
   const [noteMode, setNoteMode] = useState(false)
 
@@ -26,6 +28,7 @@ export function NotebookShell({
         notebookId={notebookId}
         initialNotes={initialNotes}
         initialStudioOutputs={initialStudioOutputs}
+        initialReadySourceCount={initialReadySourceCount}
         noteMode={noteMode}
         onNoteModeChange={setNoteMode}
       />

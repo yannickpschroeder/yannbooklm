@@ -49,7 +49,12 @@ export default async function NotebookLayout({
       />
       <div className="flex flex-1 overflow-hidden">
         <SourceSidebar notebookId={notebookId} initialSources={notebookSources} />
-        <NotebookShell notebookId={notebookId} initialNotes={initialNotes} initialStudioOutputs={initialStudioOutputs}>
+        <NotebookShell
+          notebookId={notebookId}
+          initialNotes={initialNotes}
+          initialStudioOutputs={initialStudioOutputs}
+          initialReadySourceCount={notebookSources.filter((s) => s.status === "ready" && s.enabled).length}
+        >
           {children}
         </NotebookShell>
       </div>
