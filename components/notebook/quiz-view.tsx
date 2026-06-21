@@ -21,6 +21,29 @@ export type QuizData = {
 type AnswerState = { selected: number | null; skipped: boolean }
 type Mode = "quiz" | "review" | "results"
 
+function QuizCircleProgress({ current, total }: { current: number; total: number }) {
+  const pct = total > 0 ? Math.round((current / total) * 100) : 0
+  const r = 28
+  const circ = 2 * Math.PI * r
+  const dash = (pct / 100) * circ
+  return (
+    <div className="relative flex size-16 items-center justify-center">
+      <svg className="-rotate-90" width="64" height="64">
+        <circle cx="32" cy="32" r={r} fill="none" stroke="hsl(var(--muted))" strokeWidth="5" />
+        <circle
+          cx="32" cy="32" r={r} fill="none"
+          stroke="hsl(var(--primary))" strokeWidth="5"
+          strokeDasharray={`${dash} ${circ}`}
+          strokeLinecap="round"
+        />
+      </svg>
+      <div className="absolute flex flex-col items-center leading-none">
+        <span className="text-xs font-semibold">{current}/{total}</span>
+      </div>
+    </div>
+  )
+}
+
 function CircleProgress({ correct, total }: { correct: number; total: number }) {
   const pct = total > 0 ? Math.round((correct / total) * 100) : 0
   const r = 52
@@ -215,16 +238,8 @@ export function QuizView({
   return (
     <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-5">
       {/* Progress */}
-      <div className="flex items-center gap-2">
-        <span className="text-xs text-muted-foreground">
-          {index + 1} / {data.questions.length}
-        </span>
-        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
-          <div
-            className="h-full rounded-full bg-primary transition-all"
-            style={{ width: `${((index + 1) / data.questions.length) * 100}%` }}
-          />
-        </div>
+      <div className="flex justify-center">
+        <QuizCircleProgress current={index + 1} total={data.questions.length} />
       </div>
 
       {/* Question */}
