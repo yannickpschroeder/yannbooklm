@@ -129,18 +129,20 @@
   }
 }
 
-/* ReactFlow dark mode overrides */
+/* ReactFlow dark mode overrides — !important needed because xyflow CSS loads after globals */
 .dark .react-flow__controls-button {
-  background: oklch(0.269 0 0);
-  border-color: oklch(1 0 0 / 12%);
-  fill: oklch(0.985 0 0);
+  background: oklch(0.22 0 0) !important;
+  border-color: oklch(1 0 0 / 15%) !important;
 }
 .dark .react-flow__controls-button:hover {
-  background: oklch(0.32 0 0);
+  background: oklch(0.32 0 0) !important;
+}
+.dark .react-flow__controls-button svg {
+  fill: oklch(0.85 0 0) !important;
 }
 .dark .react-flow__minimap {
-  background: oklch(0.22 0 0);
+  background: oklch(0.22 0 0) !important;
 }
 .dark .react-flow__minimap-mask {
-  fill: oklch(0 0 0 / 30%);
+  fill: oklch(0 0 0 / 30%) !important;
 }
