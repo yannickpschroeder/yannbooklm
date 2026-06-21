@@ -11,6 +11,12 @@ export const maxDuration = 60
 
 type Difficulty = "einfach" | "mittel" | "schwierig"
 
+const difficultyContext: Record<Difficulty, string> = {
+  einfach: "Das Quiz richtet sich an Einsteiger oder Menschen, die sich gerade erst mit dem Thema vertraut machen. Formuliere die Fragen klar und direkt, wähle offensichtliche Unterschiede zwischen den Antwortoptionen und vermeide Fachbegriffe ohne Erklärung. Das Ziel ist, Erfolgserlebnisse zu schaffen und grundlegendes Verständnis zu festigen.",
+  mittel: "Das Quiz richtet sich an Lernende mit Grundkenntnissen, die ihr Wissen vertiefen möchten. Mische einfache Wissensfragen mit Fragen, die echtes Verständnis und etwas Nachdenken erfordern. Die Antwortoptionen dürfen sich ähneln, sollten aber klar unterscheidbar bleiben.",
+  schwierig: "Das Quiz richtet sich an fortgeschrittene Lernende. Stelle anspruchsvolle Fragen, die tiefes Verständnis, die Fähigkeit zum kritischen Denken und das Erkennen feiner Unterschiede voraussetzen. Die Antwortoptionen dürfen sich sehr ähneln – nur wer den Stoff wirklich beherrscht, sollte die richtige Antwort sicher erkennen.",
+}
+
 async function getSourceContent(notebookId: string) {
   const rows = await db
     .select({ content: parentChunks.content, id: sources.id, title: sources.title, type: sources.type })
@@ -76,7 +82,7 @@ export async function POST(req: Request) {
     model: anthropic("claude-sonnet-4-6"),
     schema: QuizSchema,
     prompt: `Du bist ein Quiz-Generator. Erstelle auf Basis der folgenden Quellen ein Multiple-Choice-Quiz mit genau ${count} Fragen auf Deutsch.
-Schwierigkeitsgrad: ${difficulty}
+Schwierigkeitsgrad: ${difficulty} – ${difficultyContext[difficulty]}
 ${focusInstruction}
 
 Anforderungen:
