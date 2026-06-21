@@ -287,15 +287,14 @@ export function SourceSidebar({
     })
   }, [])
 
+  const handleSourceClickRef = useRef<(source: Source) => Promise<void>>(async () => undefined)
+
   useEffect(() => {
     return onOpenSourceById((sourceId) => {
-      setCollapsed(false)
-      setActiveChunk(null)
-      setTimeout(() => {
-        document.getElementById(`source-${sourceId}`)?.scrollIntoView({ behavior: "smooth", block: "center" })
-      }, 100)
+      const source = initialSources.find((s) => s.id === sourceId)
+      if (source) handleSourceClickRef.current(source)
     })
-  }, [])
+  }, [initialSources])
 
   // Poll while an upload is minimized to sidebar
   const activeSourceIdRef = useRef<string | null>(null)
@@ -440,6 +439,7 @@ export function SourceSidebar({
       setLoadingSourceId(null)
     }
   }
+  useEffect(() => { handleSourceClickRef.current = handleSourceClick })
 
   const filtered = initialSources.filter(
     (s) =>
