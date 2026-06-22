@@ -75,6 +75,9 @@ jobs:
           echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> ${{ env.ENV_FILE }}
           echo "AWS_REGION=${{ secrets.AWS_REGION }}" >> ${{ env.ENV_FILE }}
           echo "AWS_S3_BUCKET=${{ secrets.AWS_S3_BUCKET }}" >> ${{ env.ENV_FILE }}
+          echo "AUTH_URL=${{ secrets.NEXTAUTH_URL }}" >> ${{ env.ENV_FILE }}
+          echo "AUTH_TRUST_HOST=true" >> ${{ env.ENV_FILE }}
+          echo "AUTH_TRUST_HOST=true" >> ${{ env.ENV_FILE }}
           echo "NODE_ENV=production" >> ${{ env.ENV_FILE }}
           echo "PORT=3012" >> ${{ env.ENV_FILE }}
           echo "HOSTNAME=127.0.0.1" >> ${{ env.ENV_FILE }}
