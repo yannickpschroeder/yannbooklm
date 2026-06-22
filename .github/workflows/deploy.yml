@@ -1,0 +1,105 @@
+name: Deployment
+run-name: ${{ github.actor }} is deploying 🚀
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_migrations:
+        description: "Drizzle DB migration ausführen"
+        type: boolean
+        default: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      APP_NAME: "yannbooklm"
+      APP_DIR: "~/apps/yannbooklm"
+      ENV_FILE: ".yannbooklm.env"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run DB migrations
+        if: ${{ inputs.run_migrations }}
+        run: npx drizzle-kit push --force
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Build Next.js
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+      - name: Copy static assets into standalone
+        run: |
+          cp -r .next/static .next/standalone/.next/static
+          cp -r public .next/standalone/public
+
+      - name: Install SSH Key
+        uses: shimataro/ssh-key-action@v2.7.0
+        with:
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          name: hetzner-github
+          known_hosts: ${{ secrets.SSH_KNOWN_HOSTS }}
+          config: |
+            Host hetzner
+              HostName ${{ secrets.SSH_HOST }}
+              User ${{ secrets.SSH_USER }}
+              Port ${{ secrets.SSH_PORT }}
+              IdentityFile /home/runner/.ssh/hetzner-github
+
+      - name: Create environment file
+        run: |
+          touch ${{ env.ENV_FILE }}
+          echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" > ${{ env.ENV_FILE }}
+          echo "AUTH_SECRET=${{ secrets.AUTH_SECRET }}" >> ${{ env.ENV_FILE }}
+          echo "NEXTAUTH_SECRET=${{ secrets.AUTH_SECRET }}" >> ${{ env.ENV_FILE }}
+          echo "NEXTAUTH_URL=${{ secrets.NEXTAUTH_URL }}" >> ${{ env.ENV_FILE }}
+          echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> ${{ env.ENV_FILE }}
+          echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> ${{ env.ENV_FILE }}
+          echo "ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}" >> ${{ env.ENV_FILE }}
+          echo "VOYAGE_API_KEY=${{ secrets.VOYAGE_API_KEY }}" >> ${{ env.ENV_FILE }}
+          echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> ${{ env.ENV_FILE }}
+          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> ${{ env.ENV_FILE }}
+          echo "AWS_REGION=${{ secrets.AWS_REGION }}" >> ${{ env.ENV_FILE }}
+          echo "AWS_S3_BUCKET=${{ secrets.AWS_S3_BUCKET }}" >> ${{ env.ENV_FILE }}
+          echo "NODE_ENV=production" >> ${{ env.ENV_FILE }}
+          echo "PORT=3012" >> ${{ env.ENV_FILE }}
+          echo "HOSTNAME=127.0.0.1" >> ${{ env.ENV_FILE }}
+
+      - name: Create app directory on server
+        run: ssh hetzner "mkdir -p ${{ env.APP_DIR }}"
+
+      - name: Deploy build artifacts
+        run: |
+          rsync -avz --delete \
+            .next/standalone/ \
+            "hetzner:${{ env.APP_DIR }}/"
+          rsync -avz \
+            "${{ env.ENV_FILE }}" \
+            "hetzner:${{ env.APP_DIR }}/.env"
+          ssh hetzner "chmod 600 ${{ env.APP_DIR }}/.env"
+
+      - name: Restart PM2
+        run: |
+          ssh hetzner << 'ENDSSH'
+            cd ~/apps/yannbooklm
+            set -a
+            source .env
+            set +a
+            pm2 describe yannbooklm > /dev/null 2>&1 \
+              && pm2 restart yannbooklm --update-env \
+              || pm2 start server.js --name yannbooklm
+            pm2 save
+          ENDSSH
