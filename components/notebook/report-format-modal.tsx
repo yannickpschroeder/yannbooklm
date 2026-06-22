@@ -4,12 +4,7 @@ import { useState, useEffect } from "react"
 import { useTranslations } from "next-intl"
 import { Pencil, Loader2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 
 export type ReportSuggestion = { title: string; description: string }
@@ -74,7 +69,12 @@ export function ReportFormatModal({
       .finally(() => setLoadingSuggestions(false))
   }, [open, notebookId, defaultLanguage])
 
-  function openConfig(formatId: string, formatTitle: string, formatDesc: string, showCard: boolean) {
+  function openConfig(
+    formatId: string,
+    formatTitle: string,
+    formatDesc: string,
+    showCard: boolean
+  ) {
     setConfig({ formatId, formatTitle, formatDesc, showCard })
     setView("config")
   }
@@ -101,11 +101,13 @@ export function ReportFormatModal({
 
             {/* Custom report card */}
             <button
-              onClick={() => openConfig("custom", t("formatCustomTitle"), t("formatCustomDesc"), false)}
-              className="flex w-full flex-col items-start gap-1 rounded-xl border-2 border-dashed border-border bg-muted/30 p-4 text-left transition-colors hover:border-primary/40 hover:bg-muted/60"
+              onClick={() =>
+                openConfig("custom", t("formatCustomTitle"), t("formatCustomDesc"), false)
+              }
+              className="border-border bg-muted/30 hover:border-primary/40 hover:bg-muted/60 flex w-full flex-col items-start gap-1 rounded-xl border-2 border-dashed p-4 text-left transition-colors"
             >
               <span className="text-sm font-semibold">{t("formatCustomTitle")}</span>
-              <span className="text-xs text-muted-foreground">{t("formatCustomDesc")}</span>
+              <span className="text-muted-foreground text-xs">{t("formatCustomDesc")}</span>
             </button>
 
             {/* Fixed formats */}
@@ -117,7 +119,12 @@ export function ReportFormatModal({
                   description={t(fmt.descKey as Parameters<typeof t>[0])}
                   onCardClick={() => handleGenerateDirect(fmt.id)}
                   onPencilClick={() =>
-                    openConfig(fmt.id, t(fmt.titleKey as Parameters<typeof t>[0]), t(fmt.descKey as Parameters<typeof t>[0]), true)
+                    openConfig(
+                      fmt.id,
+                      t(fmt.titleKey as Parameters<typeof t>[0]),
+                      t(fmt.descKey as Parameters<typeof t>[0]),
+                      true
+                    )
                   }
                 />
               ))}
@@ -125,13 +132,13 @@ export function ReportFormatModal({
 
             {/* Suggestions */}
             <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <p className="text-muted-foreground mb-2 text-xs font-semibold tracking-wider uppercase">
                 {t("suggestionsTitle")}
               </p>
               {loadingSuggestions ? (
                 <div className="grid grid-cols-2 gap-2">
                   {[0, 1, 2, 3].map((i) => (
-                    <div key={i} className="h-16 animate-pulse rounded-xl border bg-muted/30" />
+                    <div key={i} className="bg-muted/30 h-16 animate-pulse rounded-xl border" />
                   ))}
                 </div>
               ) : suggestions.length > 0 ? (
@@ -147,7 +154,7 @@ export function ReportFormatModal({
                   ))}
                 </div>
               ) : (
-                <p className="text-xs text-muted-foreground">{t("suggestionsEmpty")}</p>
+                <p className="text-muted-foreground text-xs">{t("suggestionsEmpty")}</p>
               )}
             </div>
           </>
@@ -168,9 +175,9 @@ export function ReportFormatModal({
 
             {/* Format card preview (only when opened via pencil) */}
             {config?.showCard && (
-              <div className="rounded-xl border bg-muted/30 p-3">
+              <div className="bg-muted/30 rounded-xl border p-3">
                 <p className="text-sm font-semibold">{config.formatTitle}</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">{config.formatDesc}</p>
+                <p className="text-muted-foreground mt-0.5 text-xs">{config.formatDesc}</p>
               </div>
             )}
 
@@ -180,7 +187,7 @@ export function ReportFormatModal({
               <select
                 value={language}
                 onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setLanguage(e.target.value)}
-                className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                className="border-input bg-background focus:ring-ring h-9 w-full rounded-md border px-3 text-sm shadow-sm focus:ring-1 focus:outline-none"
               >
                 {LANGUAGES.map((l) => (
                   <option key={l.value} value={l.value}>
@@ -195,9 +202,11 @@ export function ReportFormatModal({
               <label className="text-sm font-medium">{t("promptLabel")}</label>
               <textarea
                 value={customPrompt}
-                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCustomPrompt(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                  setCustomPrompt(e.target.value)
+                }
                 placeholder={t("promptPlaceholder")}
-                className="border-input bg-background min-h-24 w-full resize-none rounded-md border px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                className="border-input bg-background focus:ring-ring min-h-24 w-full resize-none rounded-md border px-3 py-2 text-sm shadow-sm focus:ring-1 focus:outline-none"
               />
             </div>
 
@@ -223,10 +232,10 @@ function FormatCard({
   onPencilClick: () => void
 }) {
   return (
-    <div className="group relative flex flex-col gap-1 rounded-xl border bg-card p-3 text-left transition-colors hover:border-primary/40 hover:bg-muted/40">
+    <div className="group bg-card hover:border-primary/40 hover:bg-muted/40 relative flex flex-col gap-1 rounded-xl border p-3 text-left transition-colors">
       <button className="flex flex-col gap-1 text-left" onClick={onCardClick}>
-        <span className="pr-6 text-sm font-semibold leading-tight">{title}</span>
-        <span className="text-xs leading-snug text-muted-foreground">{description}</span>
+        <span className="pr-6 text-sm leading-tight font-semibold">{title}</span>
+        <span className="text-muted-foreground text-xs leading-snug">{description}</span>
       </button>
       <button
         onClick={(e) => {
@@ -234,8 +243,8 @@ function FormatCard({
           onPencilClick()
         }}
         className={cn(
-          "absolute right-2 top-2 flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors",
-          "opacity-0 group-hover:opacity-100 hover:bg-muted hover:text-foreground"
+          "text-muted-foreground absolute top-2 right-2 flex size-6 items-center justify-center rounded-md transition-colors",
+          "hover:bg-muted hover:text-foreground opacity-0 group-hover:opacity-100"
         )}
         aria-label="Anpassen"
       >
