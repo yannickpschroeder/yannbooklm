@@ -12,6 +12,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: production
     env:
       APP_NAME: "yannbooklm"
       APP_DIR: "~/apps/yannbooklm"
