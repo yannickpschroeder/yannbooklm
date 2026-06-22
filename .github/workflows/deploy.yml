@@ -33,7 +33,7 @@ jobs:
 
       - name: Run DB migrations
         if: ${{ inputs.run_migrations }}
-        run: npx drizzle-kit push --force
+        run: npx drizzle-kit migrate
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
